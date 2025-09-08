@@ -55,35 +55,32 @@ export const getUser = async (userId: string) => {
 };
 
 // REGISTER PATIENT
-export const registerPatient = async ({
-  identificationDocument,
-  ...patient
-}: RegisterUserParams) => {
+export const registerPatient = async (patient: RegisterUserParams) => {
   try {
-    // Upload file ->  // https://appwrite.io/docs/references/cloud/client-web/storage#createFile
-    let file;
-    if (identificationDocument) {
-      const inputFile =
-        identificationDocument &&
-        InputFile.fromBlob(
-          identificationDocument?.get("blobFile") as Blob,
-          identificationDocument?.get("fileName") as string
-        );
-
-      file = await storage.createFile(BUCKET_ID!, ID.unique(), inputFile);
-    }
-
     // Create new patient document -> https://appwrite.io/docs/references/cloud/server-nodejs/databases#createDocument
     const newPatient = await databases.createDocument(
       DATABASE_ID!,
       PATIENT_COLLECTION_ID!,
       ID.unique(),
       {
-        identificationDocumentId: file?.$id ? file.$id : null,
-        identificationDocumentUrl: file?.$id
-          ? `${ENDPOINT}/storage/buckets/${BUCKET_ID}/files/${file.$id}/view??project=${PROJECT_ID}`
-          : null,
-        ...patient,
+        userId: patient.userId,
+        name: patient.name,
+        email: patient.email,
+        phone: patient.phone,
+        birthDate: patient.birthDate,
+        gender: patient.gender,
+        address: patient.address,
+        occupation: patient.occupation,
+        emergencyContactName: patient.emergencyContactName,
+        emergencyContactNumber: patient.emergencyContactNumber,
+        primaryPhysician: patient.primaryPhysician,
+        insuranceProvider: patient.insuranceProvider,
+        insurancePolicyNumber: patient.insurancePolicyNumber,
+        allergies: patient.allergies,
+        currentMedication: patient.currentMedication,
+        familyMedicalHistory: patient.familyMedicalHistory,
+        pastMedicalHistory: patient.pastMedicalHistory,
+        privacyConsent: patient.privacyConsent,
       }
     );
 
@@ -106,6 +103,23 @@ export const getPatient = async (userId: string) => {
   } catch (error) {
     console.error(
       "An error occurred while retrieving the patient details:",
+      error
+    );
+  }
+};
+
+export const getPatients = async () => {
+  try {
+    const patients = await databases.listDocuments(
+      DATABASE_ID!,
+      PATIENT_COLLECTION_ID!,
+      [Query.orderDesc("$createdAt")]
+    );
+
+    return parseStringify(patients.documents);
+  } catch (error) {
+    console.error(
+      "An error occurred while retrieving patients:",
       error
     );
   }

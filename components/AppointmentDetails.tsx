@@ -1,0 +1,352 @@
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Doctors } from "@/constants";
+import { formatDateTime } from "@/lib/utils";
+import { Appointment } from "@/types/appwrite.types";
+
+import { AppointmentForm } from "./forms/AppointmentForm";
+import { StatusBadge } from "./StatusBadge";
+import { ControlledAppointmentModal } from "./ControlledAppointmentModal";
+import { AppointmentNotesModal } from "./AppointmentNotesModal";
+
+export const AppointmentDetails = ({
+  appointment,
+  userId,
+  patientId,
+}: {
+  appointment: Appointment;
+  userId: string;
+  patientId: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [actionType, setActionType] = useState<"schedule" | "plan" | "cancel" | "create">("schedule");
+
+  const doctor = Doctors.find(
+    (doctor) => doctor.name === appointment.primaryPhysician
+  );
+
+  // Parsowanie statusu dla przycisków akcji
+  let statuses: string[];
+  if (Array.isArray(appointment.status)) {
+    statuses = appointment.status;
+  } else {
+    statuses = appointment.status.includes(',') ? appointment.status.split(',').map(s => s.trim()) : [appointment.status];
+  }
+  if (statuses.length === 0) {
+    statuses = ["awaiting"];
+  }
+
+  const hasAwaiting = statuses.includes("awaiting") || statuses.includes("pending");
+  const hasAccepted = statuses.includes("accepted");
+  const hasCancelled = statuses.includes("cancelled");
+  const isCompleted = appointment.isCompleted || false;
+
+  const handleAction = (type: "schedule" | "plan" | "cancel" | "create") => {
+    setActionType(type);
+    setShowActionModal(true);
+  };
+
+  const handleActionModalClose = () => {
+    setShowActionModal(false);
+    setOpen(false);
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant="ghost" className="text-blue-500">
+            Szczegóły
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="shad-dialog max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="mb-6 space-y-3">
+            <DialogTitle className="text-2xl">Szczegóły wizyty</DialogTitle>
+            <DialogDescription>
+              Pełne informacje o wizycie i pacjencie
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-8">
+            {/* Informacje o wizycie */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold text-white border-b border-dark-500 pb-2">
+                Informacje o wizycie
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Status</label>
+                  <StatusBadge status={appointment.status} />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Data i godzina</label>
+                  <p className="text-white">{formatDateTime(appointment.schedule).dateTime}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Lekarz</label>
+                  <div className="flex items-center gap-3">
+                    <Image
+                      src={doctor?.image || "/assets/images/dr-green.png"}
+                      alt="doctor"
+                      width={32}
+                      height={32}
+                      className="rounded-full border border-dark-500"
+                    />
+                    <span className="text-white">Dr. {appointment.primaryPhysician}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Powód wizyty</label>
+                  <p className="text-white bg-dark-400 p-3 rounded-md">{appointment.reason}</p>
+                </div>
+
+                {appointment.note && (
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-medium text-dark-600">Notatki</label>
+                    <p className="text-white bg-dark-400 p-3 rounded-md">{appointment.note}</p>
+                  </div>
+                )}
+
+                {appointment.cancellationReason && (
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-medium text-dark-600">Powód anulowania</label>
+                    <p className="text-red-400 bg-red-900/20 p-3 rounded-md">{appointment.cancellationReason}</p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Informacje o pacjencie */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold text-white border-b border-dark-500 pb-2">
+                Dane osobowe pacjenta
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Imię i nazwisko</label>
+                  <p className="text-white">{appointment.patient.name}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Email</label>
+                  <p className="text-white">{appointment.patient.email}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Numer telefonu</label>
+                  <p className="text-white">{appointment.patient.phone}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Data urodzenia</label>
+                  <p className="text-white">{formatDateTime(appointment.patient.birthDate).dateOnly}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Płeć</label>
+                  <p className="text-white">
+                    {appointment.patient.gender === "male" ? "Mężczyzna" :
+                     appointment.patient.gender === "female" ? "Kobieta" :
+                     appointment.patient.gender === "others" ? "Inna" : appointment.patient.gender}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Adres</label>
+                  <p className="text-white">{appointment.patient.address}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Zawód</label>
+                  <p className="text-white">{appointment.patient.occupation || "Nie podano"}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Lekarz prowadzący</label>
+                  <p className="text-white">{appointment.patient.primaryPhysician}</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Kontakt awaryjny */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold text-white border-b border-dark-500 pb-2">
+                Kontakt awaryjny
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Imię i nazwisko</label>
+                  <p className="text-white">{appointment.patient.emergencyContactName}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Numer telefonu</label>
+                  <p className="text-white">{appointment.patient.emergencyContactNumber}</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Informacje medyczne */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold text-white border-b border-dark-500 pb-2">
+                Informacje medyczne
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Ubezpieczyciel</label>
+                  <p className="text-white">{appointment.patient.insuranceProvider || "Nie podano"}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-600">Numer polisy</label>
+                  <p className="text-white">{appointment.patient.insurancePolicyNumber}</p>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-dark-600">Alergie</label>
+                  <p className="text-white bg-dark-400 p-3 rounded-md">
+                    {appointment.patient.allergies || "Brak alergii"}
+                  </p>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-dark-600">Aktualnie przyjmowane leki</label>
+                  <p className="text-white bg-dark-400 p-3 rounded-md">
+                    {appointment.patient.currentMedication || "Brak leków"}
+                  </p>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-dark-600">Historia medyczna rodziny</label>
+                  <p className="text-white bg-dark-400 p-3 rounded-md">
+                    {appointment.patient.familyMedicalHistory || "Brak informacji"}
+                  </p>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-dark-600">Przebyte choroby</label>
+                  <p className="text-white bg-dark-400 p-3 rounded-md">
+                    {appointment.patient.pastMedicalHistory || "Brak informacji"}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Zgody i prywatność */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold text-white border-b border-dark-500 pb-2">
+                Zgody i prywatność
+              </h3>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${appointment.patient.privacyConsent ? "bg-green-500" : "bg-red-500"}`} />
+                  <span className="text-white">Zgoda na politykę prywatności</span>
+                </div>
+              </div>
+            </section>
+
+            {/* Akcje */}
+            <section className="space-y-4 pt-6 border-t border-dark-500">
+              <h3 className="text-lg font-semibold text-white">Akcje</h3>
+              
+              <div className="flex gap-3 flex-wrap">
+                {isCompleted ? (
+                  // Akcje dla odbytych wizyt
+                  <>
+                    <AppointmentNotesModal appointment={appointment} />
+                    <button
+                      onClick={() => handleAction("create")}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+                    >
+                      Umów ponownie
+                    </button>
+                    <ControlledAppointmentModal
+                      userId={userId}
+                      patientId={patientId}
+                      type="create"
+                      appointment={appointment}
+                      title="Umów ponownie"
+                      description="Umów nową wizytę dla tego pacjenta."
+                      open={showActionModal}
+                      onOpenChange={setShowActionModal}
+                    />
+                  </>
+                ) : (
+                  // Akcje dla nieodbytych wizyt
+                  <>
+                    {hasAwaiting && (
+                      <button
+                        onClick={() => handleAction("schedule")}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+                      >
+                        Potwierdź wizytę
+                      </button>
+                    )}
+                    
+                    {hasAccepted && (
+                      <button
+                        onClick={() => handleAction("plan")}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+                      >
+                        Przełóż wizytę
+                      </button>
+                    )}
+                    
+                    {!hasCancelled && (
+                      <button
+                        onClick={() => handleAction("cancel")}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
+                      >
+                        Anuluj wizytę
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </section>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal akcji */}
+      <ControlledAppointmentModal
+        userId={userId}
+        patientId={patientId}
+        type={actionType}
+        appointment={appointment}
+        title={
+          actionType === "schedule" ? "Potwierdź wizytę" :
+          actionType === "plan" ? "Przełóż wizytę" : "Anuluj wizytę"
+        }
+        description={
+          actionType === "schedule" ? "Proszę potwierdzić następujące szczegóły, aby potwierdzić wizytę" :
+          actionType === "plan" ? "Proszę ustawić konkretną datę i godzinę wizyty" :
+          "Proszę wypełnić następujące szczegóły, aby anulować wizytę"
+        }
+        open={showActionModal}
+        onOpenChange={setShowActionModal}
+      />
+    </>
+  );
+};

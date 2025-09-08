@@ -31,7 +31,7 @@ export const AppointmentForm = ({
 }: {
   userId: string;
   patientId: string;
-  type: "create" | "schedule" | "cancel";
+  type: "create" | "schedule" | "cancel" | "plan";
   appointment?: Appointment;
   setOpen?: Dispatch<SetStateAction<boolean>>;
 }) => {
@@ -46,7 +46,7 @@ export const AppointmentForm = ({
       primaryPhysician: appointment ? appointment?.primaryPhysician : "",
       schedule: appointment
         ? new Date(appointment?.schedule!)
-        : new Date(Date.now()),
+        : new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow as default
       reason: appointment ? appointment.reason : "",
       note: appointment?.note || "",
       cancellationReason: appointment?.cancellationReason || "",
@@ -61,13 +61,25 @@ export const AppointmentForm = ({
     let status;
     switch (type) {
       case "schedule":
-        status = "scheduled";
+        status = ["accepted"];
+        break;
+      case "plan":
+        // Dla przełożenia, dodaj "scheduled" do istniejących statusów
+        const currentStatuses = appointment?.status || ["awaiting"];
+        
+        // Jeśli nie ma "accepted", dodaj go (wizyta musi być potwierdzona żeby być przełożona)
+        if (!currentStatuses.includes("accepted")) {
+          currentStatuses.push("accepted");
+        }
+        // Dodaj "scheduled" (przełożona)
+        currentStatuses.push("scheduled");
+        status = currentStatuses;
         break;
       case "cancel":
-        status = "cancelled";
+        status = ["cancelled"];
         break;
       default:
-        status = "pending";
+        status = ["awaiting"];
     }
 
     try {
@@ -80,6 +92,7 @@ export const AppointmentForm = ({
           reason: values.reason!,
           status: status as Status,
           note: values.note,
+          isCompleted: false,
         };
 
         const newAppointment = await createAppointment(appointment);
@@ -119,13 +132,16 @@ export const AppointmentForm = ({
   let buttonLabel;
   switch (type) {
     case "cancel":
-      buttonLabel = "Cancel Appointment";
+      buttonLabel = "Anuluj wizytę";
       break;
     case "schedule":
-      buttonLabel = "Schedule Appointment";
+      buttonLabel = "Potwierdź wizytę";
+      break;
+    case "plan":
+      buttonLabel = "Przełóż wizytę";
       break;
     default:
-      buttonLabel = "Submit Apppointment";
+      buttonLabel = "Wyślij wizytę";
   }
 
   return (
@@ -133,9 +149,9 @@ export const AppointmentForm = ({
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 space-y-6">
         {type === "create" && (
           <section className="mb-12 space-y-4">
-            <h1 className="header">New Appointment</h1>
+            <h1 className="header">Nowa wizyta</h1>
             <p className="text-dark-700">
-              Request a new appointment in 10 seconds.
+              Umów nową wizytę w 10 sekund.
             </p>
           </section>
         )}
@@ -146,8 +162,8 @@ export const AppointmentForm = ({
               fieldType={FormFieldType.SELECT}
               control={form.control}
               name="primaryPhysician"
-              label="Doctor"
-              placeholder="Select a doctor"
+              label="Lekarz"
+              placeholder="Wybierz lekarza"
             >
               {Doctors.map((doctor, i) => (
                 <SelectItem key={doctor.name + i} value={doctor.name}>
@@ -169,9 +185,10 @@ export const AppointmentForm = ({
               fieldType={FormFieldType.DATE_PICKER}
               control={form.control}
               name="schedule"
-              label="Expected appointment date"
+              label="Oczekiwana data wizyty"
               showTimeSelect
-              dateFormat="MM/dd/yyyy  -  h:mm aa"
+              dateFormat="dd/MM/yyyy  -  HH:mm"
+              minDate={new Date(Date.now() + 24 * 60 * 60 * 1000)} // Tomorrow
             />
 
             <div
@@ -181,8 +198,8 @@ export const AppointmentForm = ({
                 fieldType={FormFieldType.TEXTAREA}
                 control={form.control}
                 name="reason"
-                label="Appointment reason"
-                placeholder="Annual montly check-up"
+                label="Powód wizyty"
+                placeholder="Roczna kontrola lekarska"
                 disabled={type === "schedule"}
               />
 
@@ -190,8 +207,8 @@ export const AppointmentForm = ({
                 fieldType={FormFieldType.TEXTAREA}
                 control={form.control}
                 name="note"
-                label="Comments/notes"
-                placeholder="Prefer afternoon appointments, if possible"
+                label="Komentarze/uwagi"
+                placeholder="Preferuję popołudniowe wizyty, jeśli to możliwe"
                 disabled={type === "schedule"}
               />
             </div>
@@ -203,8 +220,8 @@ export const AppointmentForm = ({
             fieldType={FormFieldType.TEXTAREA}
             control={form.control}
             name="cancellationReason"
-            label="Reason for cancellation"
-            placeholder="Urgent meeting came up"
+            label="Powód anulowania"
+            placeholder="Pilne spotkanie"
           />
         )}
 

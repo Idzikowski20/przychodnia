@@ -5,8 +5,8 @@ declare type SearchParamProps = {
   searchParams: { [key: string]: string | string[] | undefined };
 };
 
-declare type Gender = "Male" | "Female" | "Other";
-declare type Status = "pending" | "scheduled" | "cancelled";
+declare type Gender = "male" | "female" | "others";
+declare type Status = string[]; // Array of strings: ["accepted", "scheduled"]
 
 declare interface CreateUserParams {
   name: string;
@@ -32,9 +32,6 @@ declare interface RegisterUserParams extends CreateUserParams {
   currentMedication: string | undefined;
   familyMedicalHistory: string | undefined;
   pastMedicalHistory: string | undefined;
-  identificationType: string | undefined;
-  identificationNumber: string | undefined;
-  identificationDocument: FormData | undefined;
   privacyConsent: boolean;
 }
 
@@ -46,12 +43,41 @@ declare type CreateAppointmentParams = {
   schedule: Date;
   status: Status;
   note: string | undefined;
+  isCompleted: boolean;
+  roomName?: string;
+  roomColor?: string;
 };
 
 declare type UpdateAppointmentParams = {
   appointmentId: string;
-  userId: string;
-  timeZone: string;
-  appointment: Appointment;
-  type: string;
+  userId?: string;
+  timeZone?: string;
+  appointment?: Appointment;
+  type?: string;
+  note?: string;
+  adminNotes?: string;
 };
+
+declare type CreateDoctorParams = {
+  name: string;
+  email: string;
+  phone: string;
+  specialization: string;
+  licenseNumber: string;
+  isActive: boolean;
+  avatar?: string;
+  bio?: string;
+  workingHours: string; // JSON string
+  appointmentDuration: string;
+  breakDuration: string;
+  maxAppointmentsPerDay: string;
+  consultationFee: string;
+  currency: string;
+  notes?: string;
+};
+
+declare type UpdateDoctorParams = {
+  doctorId: string;
+  doctor: Partial<CreateDoctorParams>;
+};
+

@@ -61,7 +61,7 @@ export const PasskeyModal = () => {
 
       setOpen(false);
     } else {
-      setError("Invalid passkey. Please try again.");
+      setError("Nieprawidłowy klucz dostępu. Spróbuj ponownie.");
     }
   };
 
@@ -70,7 +70,7 @@ export const PasskeyModal = () => {
       <AlertDialogContent className="shad-alert-dialog">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-start justify-between">
-            Admin Access Verification
+            Weryfikacja dostępu administratora
             <Image
               src="/assets/icons/close.svg"
               alt="close"
@@ -81,7 +81,7 @@ export const PasskeyModal = () => {
             />
           </AlertDialogTitle>
           <AlertDialogDescription>
-            To access the admin page, please enter the passkey.
+            Aby uzyskać dostęp do panelu administratora, wprowadź klucz dostępu.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div>
@@ -111,7 +111,7 @@ export const PasskeyModal = () => {
             onClick={(e) => validatePasskey(e)}
             className="shad-primary-btn w-full"
           >
-            Enter Admin Passkey
+            Wprowadź klucz administratora
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

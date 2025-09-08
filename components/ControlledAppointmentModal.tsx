@@ -1,51 +1,40 @@
 "use client";
 
-import { useState } from "react";
-
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Appointment } from "@/types/appwrite.types";
-
 import { AppointmentForm } from "./forms/AppointmentForm";
 
 import "react-datepicker/dist/react-datepicker.css";
 
-export const AppointmentModal = ({
-  patientId,
-  userId,
-  appointment,
-  type,
-  title,
-  description,
-}: {
+type ControlledAppointmentModalProps = {
   patientId: string;
   userId: string;
   appointment?: Appointment;
   type: "create" | "schedule" | "cancel" | "plan";
   title: string;
   description: string;
-}) => {
-  const [open, setOpen] = useState(false);
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
 
+export const ControlledAppointmentModal = ({
+  patientId,
+  userId,
+  appointment,
+  type,
+  title,
+  description,
+  open,
+  onOpenChange,
+}: ControlledAppointmentModalProps) => {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          className={`capitalize ${(type === "schedule" || type === "plan" || type === "create") && "text-green-500"} ${type === "cancel" && "text-red-500"}`}
-        >
-          {type === "schedule" ? "potwierdź" : 
-           type === "plan" ? "przełóż" : 
-           type === "create" ? "umów ponownie" : "anuluj"}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="shad-dialog sm:max-w-md">
         <DialogHeader className="mb-4 space-y-3">
           <DialogTitle className="capitalize">
@@ -61,7 +50,7 @@ export const AppointmentModal = ({
           patientId={patientId}
           type={type}
           appointment={appointment}
-          setOpen={setOpen}
+          setOpen={onOpenChange}
         />
       </DialogContent>
     </Dialog>

@@ -37,6 +37,8 @@ interface CustomProps {
   disabled?: boolean;
   dateFormat?: string;
   showTimeSelect?: boolean;
+  minDate?: Date;
+  maxDate?: Date;
   children?: React.ReactNode;
   renderSkeleton?: (field: any) => React.ReactNode;
   fieldType: FormFieldType;
@@ -123,6 +125,20 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
               timeInputLabel="Time:"
               dateFormat={props.dateFormat ?? "MM/dd/yyyy"}
               wrapperClassName="date-picker"
+              showMonthDropdown
+              showYearDropdown
+              dropdownMode="select"
+              yearDropdownItemNumber={100}
+              scrollableYearDropdown
+              maxDate={props.maxDate}
+              minDate={props.minDate}
+              placeholderText="Wybierz datę"
+              isClearable
+              showPopperArrow={false}
+              popperClassName="react-datepicker-popper"
+              calendarClassName="react-datepicker-calendar"
+              withPortal={false}
+              fixedHeight
             />
           </FormControl>
         </div>

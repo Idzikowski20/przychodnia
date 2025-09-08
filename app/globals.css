@@ -348,3 +348,20 @@
 .PhoneInputInput::placeholder {
   color: #1a1d21;
 }
+
+/* Calendar styles */
+.calendar-day {
+  transition: all 0.2s ease-in-out;
+}
+
+.calendar-day:hover {
+  background-color: #374151;
+}
+
+.calendar-appointment {
+  transition: all 0.2s ease-in-out;
+}
+
+.calendar-appointment:hover {
+  transform: scale(1.05);
+}
