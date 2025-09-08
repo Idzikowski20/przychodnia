@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-import { StatCard } from "@/components/StatCard";
-import { AppointmentCalendar } from "@/components/AppointmentCalendar";
+import { getRecentAppointmentList } from "@/lib/actions/appointment.actions";
+
 import { AdminNavigation } from "@/components/AdminNavigation";
-import { PatientsList } from "@/components/PatientsList";
+import { AppointmentCalendar } from "@/components/AppointmentCalendar";
 import { DoctorsList } from "@/components/DoctorsList";
 import { OfficeView } from "@/components/OfficeView";
-import { columns } from "@/components/table/columns";
-import { DataTable } from "@/components/table/DataTable";
-import { getRecentAppointmentList } from "@/lib/actions/appointment.actions";
-import { useEffect } from "react";
 import { PatientAppointmentModal } from "@/components/PatientAppointmentModal";
+import { PatientsList } from "@/components/PatientsList";
+import { StatCard } from "@/components/StatCard";
+import { DataTable } from "@/components/table/DataTable";
+import { columns } from "@/components/table/columns";
 
 const AdminPage = () => {
   const [activeSection, setActiveSection] = useState<"appointments" | "patients" | "specialists" | "office" | "payments" | "settings">("appointments");
@@ -179,7 +179,7 @@ const AdminPage = () => {
                 onClick={() => setShowAppointmentModal(true)}
                 className="px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg transition-colors font-medium text-lg flex items-center gap-2 shadow-lg"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
                 Umów pacjenta
@@ -217,7 +217,7 @@ const AdminPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
+                  <div className="size-12 bg-green-600 rounded-lg flex items-center justify-center">
                     <span className="text-white font-bold text-lg">₽</span>
                   </div>
                   <div>
@@ -229,7 +229,7 @@ const AdminPage = () => {
               
               <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <div className="size-12 bg-blue-600 rounded-lg flex items-center justify-center">
                     <span className="text-white font-bold text-lg">₽</span>
                   </div>
                   <div>
@@ -241,7 +241,7 @@ const AdminPage = () => {
 
               <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-yellow-600 rounded-lg flex items-center justify-center">
+                  <div className="size-12 bg-yellow-600 rounded-lg flex items-center justify-center">
                     <span className="text-white font-bold text-lg">⏰</span>
                   </div>
                   <div>
@@ -253,7 +253,7 @@ const AdminPage = () => {
 
               <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center">
+                  <div className="size-12 bg-red-600 rounded-lg flex items-center justify-center">
                     <span className="text-white font-bold text-lg">❌</span>
                   </div>
                   <div>
@@ -374,7 +374,7 @@ const AdminPage = () => {
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" className="sr-only peer" defaultChecked />
-                        <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:size-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
                     </div>
                     
@@ -385,7 +385,7 @@ const AdminPage = () => {
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" className="sr-only peer" defaultChecked />
-                        <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:size-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
                     </div>
                   </div>

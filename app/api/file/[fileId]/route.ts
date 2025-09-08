@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { storage, BUCKET_ID } from "@/lib/appwrite.config";
 
 export async function GET(

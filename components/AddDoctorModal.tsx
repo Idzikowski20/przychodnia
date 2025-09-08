@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -9,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+
 import { DoctorForm } from "./forms/DoctorForm";
 
 type AddDoctorModalProps = {
@@ -30,8 +32,8 @@ export const AddDoctorModal = ({ onDoctorAdded }: AddDoctorModalProps) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button className="flex flex-col items-center justify-center gap-2 text-white/70 hover:text-white transition-colors w-full h-full">
-          <div className="w-12 h-12 border-2 border-dashed border-white/30 rounded-full flex items-center justify-center">
+        <button className="flex flex-col items-center justify-center gap-2 text-white/70 hover:text-white transition-colors size-full">
+          <div className="size-12 border-2 border-dashed border-white/30 rounded-full flex items-center justify-center">
             <span className="text-2xl">+</span>
           </div>
           <span className="text-sm">Dodaj specjalistę</span>

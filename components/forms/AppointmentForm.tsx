@@ -63,9 +63,13 @@ export const AppointmentForm = ({
       case "schedule":
         status = ["accepted"];
         break;
-      case "plan":
+      case "plan": {
         // Dla przełożenia, dodaj "scheduled" do istniejących statusów
-        const currentStatuses = appointment?.status || ["awaiting"];
+        const currentStatuses = Array.isArray(appointment?.status) 
+          ? [...appointment.status] 
+          : appointment?.status 
+            ? [appointment.status] 
+            : ["awaiting"];
         
         // Jeśli nie ma "accepted", dodaj go (wizyta musi być potwierdzona żeby być przełożona)
         if (!currentStatuses.includes("accepted")) {
@@ -75,6 +79,7 @@ export const AppointmentForm = ({
         currentStatuses.push("scheduled");
         status = currentStatuses;
         break;
+      }
       case "cancel":
         status = ["cancelled"];
         break;

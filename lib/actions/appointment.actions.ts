@@ -12,8 +12,9 @@ import {
   messaging,
 } from "../appwrite.config";
 import { formatDateTime, parseStringify } from "../utils";
-import { getRooms } from "./room.actions";
+
 import { getDoctors } from "./doctor.actions";
+import { getRooms } from "./room.actions";
 
 //  CREATE APPOINTMENT
 export const createAppointment = async (

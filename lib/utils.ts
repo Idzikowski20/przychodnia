@@ -19,7 +19,7 @@ export const formatDateTime = (dateString: Date | string, timeZone: string = Int
     hour: "2-digit", // godzina (e.g., '08')
     minute: "2-digit", // minuta (e.g., '30')
     hour12: false, // format 24-godzinny
-    timeZone: timeZone, // strefa czasowa
+    timeZone, // strefa czasowa
   };
 
   const dateDayOptions: Intl.DateTimeFormatOptions = {
@@ -27,21 +27,21 @@ export const formatDateTime = (dateString: Date | string, timeZone: string = Int
     year: "numeric", // rok (e.g., '2023')
     month: "2-digit", // miesiąc (e.g., '10')
     day: "2-digit", // dzień (e.g., '25')
-    timeZone: timeZone, // strefa czasowa
+    timeZone, // strefa czasowa
   };
 
   const dateOptions: Intl.DateTimeFormatOptions = {
     month: "long", // pełna nazwa miesiąca (e.g., 'październik')
     year: "numeric", // rok (e.g., '2023')
     day: "numeric", // dzień miesiąca (e.g., '25')
-    timeZone: timeZone, // strefa czasowa
+    timeZone, // strefa czasowa
   };
 
   const timeOptions: Intl.DateTimeFormatOptions = {
     hour: "2-digit", // godzina (e.g., '08')
     minute: "2-digit", // minuta (e.g., '30')
     hour12: false, // format 24-godzinny
-    timeZone: timeZone, // strefa czasowa
+    timeZone, // strefa czasowa
   };
 
   const formattedDateTime: string = new Date(dateString).toLocaleString(

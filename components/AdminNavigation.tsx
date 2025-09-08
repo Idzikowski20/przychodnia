@@ -69,7 +69,7 @@ export const AdminNavigation = ({ activeSection, onSectionChange, onLogout }: Ad
                   : "text-white/70 hover:text-white hover:bg-white/5"
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="size-4" />
               <span className="font-medium text-sm">{section.label}</span>
             </button>
           );
@@ -84,9 +84,9 @@ export const AdminNavigation = ({ activeSection, onSectionChange, onLogout }: Ad
           className="p-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all duration-200"
         >
           {isMobileMenuOpen ? (
-            <XMarkIcon className="w-6 h-6" />
+            <XMarkIcon className="size-6" />
           ) : (
-            <Bars3Icon className="w-6 h-6" />
+            <Bars3Icon className="size-6" />
           )}
         </button>
       </div>
@@ -109,7 +109,7 @@ export const AdminNavigation = ({ activeSection, onSectionChange, onLogout }: Ad
                   <img 
                     src="/assets/icons/logo-icon.svg" 
                     alt="Logo" 
-                    className="w-8 h-8"
+                    className="size-8"
                   />
                   <span className="text-white font-semibold text-lg">Panel Admina</span>
                 </div>
@@ -117,7 +117,7 @@ export const AdminNavigation = ({ activeSection, onSectionChange, onLogout }: Ad
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="p-2 rounded-lg bg-white/5 text-white hover:bg-white/10 transition-all duration-200"
                 >
-                  <XMarkIcon className="w-5 h-5" />
+                  <XMarkIcon className="size-5" />
                 </button>
               </div>
 
@@ -137,7 +137,7 @@ export const AdminNavigation = ({ activeSection, onSectionChange, onLogout }: Ad
                           : "text-white/70 hover:text-white hover:bg-white/5"
                       }`}
                     >
-                      <Icon className="w-5 h-5" />
+                      <Icon className="size-5" />
                       <span className="font-medium">{section.label}</span>
                     </button>
                   );
@@ -155,7 +155,7 @@ export const AdminNavigation = ({ activeSection, onSectionChange, onLogout }: Ad
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-red-400 hover:text-red-300 hover:bg-red-500/10"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
                     <span className="font-medium">Wyloguj</span>

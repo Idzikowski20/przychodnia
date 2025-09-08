@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { ChevronDownIcon, ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+
 import { formatDateTime } from "@/lib/utils";
 import { Appointment } from "@/types/appwrite.types";
+
 import { CalendarAppointmentModal } from "./CalendarAppointmentModal";
 
 type AppointmentCalendarProps = {
@@ -23,7 +25,6 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
     const month = currentDate.getMonth();
     
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
     
@@ -74,7 +75,7 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
   // Nazwy dni tygodnia po polsku
   const dayNames = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "Sb"];
 
-  const calendar = generateCalendar();
+  generateCalendar();
   const currentMonth = monthNames[currentDate.getMonth()];
   const currentYear = currentDate.getFullYear();
   
@@ -189,7 +190,7 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
     return statuses.map((status, index) => (
       <div
         key={index}
-        className="w-1.5 h-1.5 rounded-full border border-black/30 shadow-sm"
+        className="size-1.5 rounded-full border border-black/30 shadow-sm"
         style={{ backgroundColor: getStatusColor(status) }}
         title={status}
       />
@@ -241,9 +242,9 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
             {isExpanded ? "Zwiń" : "Rozwiń"}
           </span>
           {isExpanded ? (
-            <ChevronUpIcon className="w-4 h-4 text-white" />
+            <ChevronUpIcon className="size-4 text-white" />
           ) : (
-            <ChevronDownIcon className="w-4 h-4 text-white" />
+            <ChevronDownIcon className="size-4 text-white" />
           )}
         </button>
       </div>
@@ -263,7 +264,7 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
                   onClick={() => navigateMonth('prev')}
                   className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                 >
-                  <ChevronLeftIcon className="w-5 h-5 text-white" />
+                  <ChevronLeftIcon className="size-5 text-white" />
                 </button>
                 <h3 className="text-lg font-semibold text-white">
                   {currentMonth} {currentYear}
@@ -272,13 +273,13 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
                   onClick={() => navigateMonth('next')}
                   className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                 >
-                  <ChevronRightIcon className="w-5 h-5 text-white" />
+                  <ChevronRightIcon className="size-5 text-white" />
                 </button>
               </div>
               {/* Aktualny dzień */}
               <div className="text-center">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-lg border border-white/20">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <div className="size-2 bg-green-500 rounded-full animate-pulse"></div>
                   <span className="text-sm text-white/90 font-medium capitalize">
                     {todayString}
                   </span>
@@ -322,7 +323,7 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
                     {/* Numer dnia */}
                     <div className={`text-sm mb-2 ${
                       isToday 
-                        ? 'font-bold text-blue-100 bg-blue-600/50 rounded-full w-6 h-6 flex items-center justify-center mx-auto' 
+                        ? 'font-bold text-blue-100 bg-blue-600/50 rounded-full size-6 flex items-center justify-center mx-auto' 
                         : isCurrentMonth 
                           ? 'text-white' 
                           : 'text-white/40'
@@ -356,17 +357,17 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
                             <div className="opacity-90 truncate flex items-center gap-1">
                               <span>{appointment.patient.name}</span>
                               {appointment.doctorAvatar && (
-                                <div className="w-4 h-4 rounded-full overflow-hidden border border-white/30">
+                                <div className="size-4 rounded-full overflow-hidden border border-white/30">
                                   <img
                                     src={appointment.doctorAvatar}
                                     alt={appointment.primaryPhysician}
-                                    className="w-full h-full object-cover"
+                                    className="size-full object-cover"
                                   />
                                 </div>
                               )}
                               {isAppointmentCompleted(appointment) && (
-                                <div className="w-4 h-4 rounded-full bg-green-600 flex items-center justify-center border border-white/30">
-                                  <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <div className="size-4 rounded-full bg-green-600 flex items-center justify-center border border-white/30">
+                                  <svg className="size-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                   </svg>
                                 </div>
@@ -401,7 +402,7 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
 
         {/* Gradient overlay gdy zwinięty */}
         {!isExpanded && (
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-dark-900 via-dark-900/90 to-transparent pointer-events-none rounded-b-xl" />
+          <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-dark-900 via-dark-900/90 to-transparent pointer-events-none rounded-b-xl" />
         )}
       </div>
 

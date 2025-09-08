@@ -50,7 +50,7 @@ export const ControlledAppointmentModal = ({
           patientId={patientId}
           type={type}
           appointment={appointment}
-          setOpen={onOpenChange}
+          setOpen={(value) => onOpenChange(typeof value === 'function' ? value(open) : value)}
         />
       </DialogContent>
     </Dialog>

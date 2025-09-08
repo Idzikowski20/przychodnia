@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ID, InputFile } from "node-appwrite";
-import { storage, BUCKET_ID, ENDPOINT, PROJECT_ID } from "@/lib/appwrite.config";
+
+import { storage, BUCKET_ID } from "@/lib/appwrite.config";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const fileId = ID.unique();
-    const uploadedFile = await storage.createFile(
+    await storage.createFile(
       BUCKET_ID!,
       fileId,
       InputFile.fromBlob(file, file.name)
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Zwróć tylko fileId - URL będzie generowany przez nasz API endpoint
     return NextResponse.json({ 
       success: true, 
-      fileId: fileId
+      fileId
     });
   } catch (error) {
     console.error("Error uploading file:", error);

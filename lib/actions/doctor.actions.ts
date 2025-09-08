@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { ID, Query } from "node-appwrite";
 
-import { Doctor } from "@/types/appwrite.types";
 
 import {
   DATABASE_ID,

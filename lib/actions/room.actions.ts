@@ -1,6 +1,7 @@
 "use server";
 
 import { ID, Query } from "node-appwrite";
+
 import { 
   DATABASE_ID, 
   ROOM_COLLECTION_ID,
@@ -95,10 +96,10 @@ export const removeDuplicateRooms = async () => {
     );
 
     const roomMap = new Map();
-    const duplicatesToDelete = [];
+    const duplicatesToDelete: string[] = [];
 
     // Znajdź duplikaty
-    allRooms.documents.forEach(room => {
+    allRooms.documents.forEach((room: any) => {
       const name = room.name;
       if (roomMap.has(name)) {
         // To jest duplikat - dodaj do listy do usunięcia
@@ -126,6 +127,6 @@ export const removeDuplicateRooms = async () => {
     };
   } catch (error) {
     console.error("Błąd podczas usuwania duplikatów gabinetów:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 };
