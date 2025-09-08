@@ -38,19 +38,19 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
     return calendar;
   };
 
-  // Generowanie tygodnia (poniedziałek-niedziela)
+  // Generowanie tygodnia (niedziela-sobota)
   const generateWeek = () => {
     const today = new Date();
-    const currentDay = today.getDay();
+    const currentDay = today.getDay(); // 0 = niedziela, 1 = poniedziałek, ..., 6 = sobota
     
-    // Znajdź poniedziałek tego tygodnia
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - (currentDay === 0 ? 6 : currentDay - 1));
+    // Znajdź niedzielę tego tygodnia
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - currentDay);
     
     const week = [];
     for (let i = 0; i < 7; i++) {
-      const day = new Date(monday);
-      day.setDate(monday.getDate() + i);
+      const day = new Date(sunday);
+      day.setDate(sunday.getDate() + i);
       week.push(day);
     }
     
@@ -77,6 +77,15 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
   const calendar = generateCalendar();
   const currentMonth = monthNames[currentDate.getMonth()];
   const currentYear = currentDate.getFullYear();
+  
+  // Aktualna data
+  const today = new Date();
+  const todayString = today.toLocaleDateString('pl-PL', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     setCurrentDate(prev => {
@@ -90,11 +99,26 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
     });
   };
 
+  // Mapowanie nazw kolorów na wartości hex
+  const getColorValue = (colorName: string) => {
+    const colorMap: { [key: string]: string } = {
+      green: '#10b981',
+      blue: '#3b82f6',
+      purple: '#8b5cf6',
+      red: '#ef4444',
+      yellow: '#f59e0b',
+      pink: '#ec4899',
+      indigo: '#6366f1',
+      teal: '#14b8a6'
+    };
+    return colorMap[colorName] || '#10b981';
+  };
+
   // Kolory gabinetów dla wizyt
   const getAppointmentColor = (appointment: Appointment) => {
     // Jeśli wizyta ma przypisany kolor gabinetu, użyj go
     if (appointment.roomColor) {
-      return `bg-${appointment.roomColor}-500`;
+      return getColorValue(appointment.roomColor);
     }
     
     // Fallback na kolory statusów (dla wizyt bez przypisanego gabinetu)
@@ -109,11 +133,67 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
     }
 
     // Sprawdź statusy w odpowiedniej kolejności (kolory zgodne z StatusBadge)
-    if (statuses.includes("cancelled")) return "bg-red-600";
-    if (appointment.isCompleted || statuses.includes("completed")) return "bg-green-900";
-    if (statuses.includes("scheduled")) return "bg-green-600";
-    if (statuses.includes("accepted")) return "bg-blue-600";
-    return "bg-yellow-700";
+    if (statuses.includes("cancelled")) return "#ef4444";
+    if (appointment.isCompleted || statuses.includes("completed")) return "#059669";
+    if (statuses.includes("scheduled")) return "#10b981";
+    if (statuses.includes("accepted")) return "#3b82f6";
+    return "#f59e0b";
+  };
+
+  // Kolory dla poszczególnych statusów
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "cancelled": return "#ef4444";
+      case "completed": return "#059669";
+      case "scheduled": return "#10b981";
+      case "accepted": return "#3b82f6";
+      case "awaiting":
+      case "pending": return "#f59e0b";
+      default: return "#6b7280";
+    }
+  };
+
+  // Sprawdź czy wizyta jest anulowana
+  const isAppointmentCancelled = (appointment: Appointment) => {
+    let statuses: string[];
+    if (Array.isArray(appointment.status)) {
+      statuses = appointment.status;
+    } else {
+      statuses = appointment.status.includes(',') ? appointment.status.split(',').map(s => s.trim()) : [appointment.status];
+    }
+    return statuses.includes("cancelled");
+  };
+
+  // Sprawdź czy wizyta się odbyła
+  const isAppointmentCompleted = (appointment: Appointment) => {
+    return appointment.isCompleted || (Array.isArray(appointment.status) ? appointment.status.includes("completed") : appointment.status.includes("completed"));
+  };
+
+  // Generuj kropki statusów dla wizyty
+  const getStatusDots = (appointment: Appointment) => {
+    let statuses: string[];
+    if (Array.isArray(appointment.status)) {
+      statuses = appointment.status;
+    } else {
+      statuses = appointment.status.includes(',') ? appointment.status.split(',').map(s => s.trim()) : [appointment.status];
+    }
+    if (statuses.length === 0) {
+      statuses = ["awaiting"];
+    }
+
+    // Dodaj status "completed" jeśli wizyta jest oznaczona jako odbyta
+    if (appointment.isCompleted && !statuses.includes("completed")) {
+      statuses.push("completed");
+    }
+
+    return statuses.map((status, index) => (
+      <div
+        key={index}
+        className="w-1.5 h-1.5 rounded-full border border-black/30 shadow-sm"
+        style={{ backgroundColor: getStatusColor(status) }}
+        title={status}
+      />
+    ));
   };
 
   const handleAppointmentClick = (appointment: Appointment) => {
@@ -172,27 +252,38 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
       <div className="relative">
         <div 
           className={`bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 transition-all duration-300 ease-in-out ${
-            isExpanded ? 'max-h-none' : 'max-h-60 overflow-hidden'
+            isExpanded ? 'max-h-none' : 'max-h-80 overflow-hidden'
           }`}
         >
           {/* Nawigacja miesiąca - tylko w widoku miesiąca */}
           {!isWeekView && (
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <button
-                onClick={() => navigateMonth('prev')}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <ChevronLeftIcon className="w-5 h-5 text-white" />
-              </button>
-              <h3 className="text-lg font-semibold text-white">
-                {currentMonth} {currentYear}
-              </h3>
-              <button
-                onClick={() => navigateMonth('next')}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <ChevronRightIcon className="w-5 h-5 text-white" />
-              </button>
+            <div className="p-4 border-b border-white/10">
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  onClick={() => navigateMonth('prev')}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <ChevronLeftIcon className="w-5 h-5 text-white" />
+                </button>
+                <h3 className="text-lg font-semibold text-white">
+                  {currentMonth} {currentYear}
+                </h3>
+                <button
+                  onClick={() => navigateMonth('next')}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <ChevronRightIcon className="w-5 h-5 text-white" />
+                </button>
+              </div>
+              {/* Aktualny dzień */}
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-lg border border-white/20">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm text-white/90 font-medium capitalize">
+                    {todayString}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
 
@@ -220,14 +311,22 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
                 return (
                   <div
                     key={index}
-                    className={`min-h-20 p-2 border border-white/10 ${
-                      isCurrentMonth ? 'bg-white/5' : 'bg-white/2'
-                    } ${isToday ? 'bg-blue-500/20 border-blue-400/50' : ''} hover:bg-white/10 transition-colors`}
+                    className={`min-h-20 p-2 border transition-all duration-200 ${
+                      isToday 
+                        ? 'bg-blue-500/30 border-blue-400 ring-2 ring-blue-400/50 shadow-lg shadow-blue-500/20' 
+                        : isCurrentMonth 
+                          ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                          : 'bg-white/2 border-white/5 hover:bg-white/5'
+                    }`}
                   >
                     {/* Numer dnia */}
                     <div className={`text-sm mb-2 ${
-                      isCurrentMonth ? 'text-white' : 'text-white/40'
-                    } ${isToday ? 'font-bold text-blue-300' : ''}`}>
+                      isToday 
+                        ? 'font-bold text-blue-100 bg-blue-600/50 rounded-full w-6 h-6 flex items-center justify-center mx-auto' 
+                        : isCurrentMonth 
+                          ? 'text-white' 
+                          : 'text-white/40'
+                    }`}>
                       {date.getDate()}
                     </div>
                     
@@ -241,23 +340,36 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
                         return (
                           <div
                             key={idx}
-                            className={`text-xs p-1.5 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity ${getAppointmentColor(appointment)}`}
-                            title={`${appointment.patient.name} - ${formatDateTime(appointment.schedule).time}${roomDisplayName ? ` - ${roomDisplayName}` : ''}`}
+                            className={`text-xs p-1.5 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity ${
+                              isAppointmentCancelled(appointment) ? 'line-through opacity-75 brightness-75' : ''
+                            }`}
+                            style={{ backgroundColor: getAppointmentColor(appointment) }}
+                            title={`${appointment.patient.name} - ${formatDateTime(appointment.schedule).timeOnly}${roomDisplayName ? ` - ${roomDisplayName}` : ''}`}
                             onClick={() => handleAppointmentClick(appointment)}
                           >
-                            <div className="font-medium">{formatDateTime(appointment.schedule).time}</div>
+                            <div className="font-medium flex items-center gap-1">
+                              {formatDateTime(appointment.schedule).timeOnly}
+                              <div className="flex gap-0.5">
+                                {getStatusDots(appointment)}
+                              </div>
+                            </div>
                             <div className="opacity-90 truncate flex items-center gap-1">
                               <span>{appointment.patient.name}</span>
-                              {roomDisplayName && (
-                                <span 
-                                  className="px-1.5 py-0.5 rounded text-xs font-medium opacity-90"
-                                  style={{ 
-                                    backgroundColor: appointment.roomColor || '#3B82F6',
-                                    color: 'white'
-                                  }}
-                                >
-                                  {roomDisplayName}
-                                </span>
+                              {appointment.doctorAvatar && (
+                                <div className="w-4 h-4 rounded-full overflow-hidden border border-white/30">
+                                  <img
+                                    src={appointment.doctorAvatar}
+                                    alt={appointment.primaryPhysician}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              )}
+                              {isAppointmentCompleted(appointment) && (
+                                <div className="w-4 h-4 rounded-full bg-green-600 flex items-center justify-center border border-white/30">
+                                  <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
                               )}
                             </div>
                           </div>

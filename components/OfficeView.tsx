@@ -16,9 +16,10 @@ type RoomWithStatus = Room & {
 
 type OfficeViewProps = {
   appointments?: any[];
+  onRoomChange?: () => void;
 };
 
-export const OfficeView = ({ appointments = [] }: OfficeViewProps) => {
+export const OfficeView = ({ appointments = [], onRoomChange }: OfficeViewProps) => {
   const [rooms, setRooms] = useState<RoomWithStatus[]>([]);
   const [editingRoom, setEditingRoom] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -198,6 +199,11 @@ export const OfficeView = ({ appointments = [] }: OfficeViewProps) => {
       );
       setRooms(uniqueRooms.map((room: any) => ({ ...room, isOccupied: false })));
       setEditingColor(null);
+      
+      // Powiadom rodzica o zmianie (odśwież wizyty)
+      if (onRoomChange) {
+        onRoomChange();
+      }
     } catch (error) {
       console.error("Błąd podczas zmiany koloru gabinetu:", error);
     }
@@ -269,7 +275,7 @@ export const OfficeView = ({ appointments = [] }: OfficeViewProps) => {
       )}
 
       {/* Gabinety */}
-      <div className="grid grid-cols-2 gap-6 max-w-4xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         {rooms.map((room) => (
           <div
             key={room.$id}

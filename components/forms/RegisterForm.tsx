@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -15,9 +15,12 @@ import {
   Doctors,
   GenderOptions,
   PatientFormDefaultValues,
+  InsuranceProviders,
 } from "@/constants";
 import { registerPatient } from "@/lib/actions/patient.actions";
+import { getDoctors } from "@/lib/actions/doctor.actions";
 import { PatientFormValidation } from "@/lib/validation";
+import { Doctor } from "@/types/appwrite.types";
 
 import "react-datepicker/dist/react-datepicker.css";
 import "react-phone-number-input/style.css";
@@ -28,6 +31,20 @@ import SubmitButton from "../SubmitButton";
 const RegisterForm = ({ user }: { user: User }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const doctorsData = await getDoctors();
+        setDoctors(doctorsData);
+      } catch (error) {
+        console.error("Error fetching doctors:", error);
+      }
+    };
+
+    fetchDoctors();
+  }, []);
 
   const form = useForm<z.infer<typeof PatientFormValidation>>({
     resolver: zodResolver(PatientFormValidation),
@@ -80,7 +97,7 @@ const RegisterForm = ({ user }: { user: User }) => {
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="flex-1 space-y-12"
+        className="flex-1"
       >
         <section className="space-y-4">
           <h1 className="header">Witamy 👋</h1>
@@ -212,17 +229,28 @@ const RegisterForm = ({ user }: { user: User }) => {
             label="Lekarz prowadzący"
             placeholder="Wybierz lekarza"
           >
-            {Doctors.map((doctor, i) => (
-              <SelectItem key={doctor.name + i} value={doctor.name}>
+            {doctors.map((doctor, i) => (
+              <SelectItem key={doctor.$id + i} value={doctor.name}>
                 <div className="flex cursor-pointer items-center gap-2">
-                  <Image
-                    src={doctor.image}
-                    width={32}
-                    height={32}
-                    alt="doctor"
-                    className="rounded-full border border-dark-500"
-                  />
-                  <p>{doctor.name}</p>
+                  {doctor.avatar ? (
+                    <Image
+                      src={doctor.avatar}
+                      width={32}
+                      height={32}
+                      alt="doctor"
+                      className="rounded-full border border-dark-500"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">
+                        {doctor.name.split(' ').map(n => n[0]).join('')}
+                      </span>
+                    </div>
+                  )}
+                  <div>
+                    <p>{doctor.name}</p>
+                    <p className="text-xs text-gray-500">{doctor.specialization}</p>
+                  </div>
                 </div>
               </SelectItem>
             ))}
@@ -231,12 +259,18 @@ const RegisterForm = ({ user }: { user: User }) => {
           {/* INSURANCE & POLICY NUMBER */}
           <div className="flex flex-col gap-6 xl:flex-row">
             <CustomFormField
-              fieldType={FormFieldType.INPUT}
+              fieldType={FormFieldType.SELECT}
               control={form.control}
               name="insuranceProvider"
               label="Ubezpieczyciel"
-              placeholder="NFZ"
-            />
+              placeholder="Wybierz ubezpieczyciela"
+            >
+              {InsuranceProviders.map((provider, i) => (
+                <SelectItem key={provider + i} value={provider}>
+                  {provider}
+                </SelectItem>
+              ))}
+            </CustomFormField>
 
             <CustomFormField
               fieldType={FormFieldType.INPUT}

@@ -1,4 +1,18 @@
-export const GenderOptions = ["male", "female", "others"];
+export const GenderOptions = ["Mężczyzna", "Kobieta", "Inny"];
+
+export const InsuranceProviders = [
+  "NFZ",
+  "PZU Zdrowie",
+  "Lux Med",
+  "Medicover",
+  "Enel Med",
+  "Polmed",
+  "Compensa",
+  "Allianz",
+  "Generali",
+  "Warta",
+  "Inne"
+];
 
 export const PatientFormDefaultValues = {
   firstName: "",
@@ -6,7 +20,7 @@ export const PatientFormDefaultValues = {
   email: "",
   phone: "",
   birthDate: new Date(Date.now()),
-  gender: "male" as Gender,
+  gender: "Mężczyzna" as Gender,
   address: "",
   occupation: "",
   emergencyContactName: "",

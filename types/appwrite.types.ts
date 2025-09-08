@@ -36,6 +36,7 @@ export interface Appointment extends Models.Document {
   roomId?: string; // ID gabinetu
   roomName?: string; // Nazwa gabinetu dla łatwiejszego wyświetlania
   roomColor?: string; // Kolor gabinetu dla kalendarza
+  doctorAvatar?: string; // Avatar lekarza dla wyświetlania w tabeli
 }
 
 export interface WorkingHours {

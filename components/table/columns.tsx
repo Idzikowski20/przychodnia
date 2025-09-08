@@ -6,6 +6,21 @@ import Image from "next/image";
 import { formatDateTime } from "@/lib/utils";
 import { Appointment } from "@/types/appwrite.types";
 
+// Mapowanie nazw kolorów na wartości hex
+const getColorValue = (colorName: string) => {
+  const colorMap: { [key: string]: string } = {
+    green: '#10b981',
+    blue: '#3b82f6',
+    purple: '#8b5cf6',
+    red: '#ef4444',
+    yellow: '#f59e0b',
+    pink: '#ec4899',
+    indigo: '#6366f1',
+    teal: '#14b8a6'
+  };
+  return colorMap[colorName] || '#10b981';
+};
+
 import { AppointmentModal } from "../AppointmentModal";
 import { AppointmentDetails } from "../AppointmentDetails";
 import { AppointmentNotesModal } from "../AppointmentNotesModal";
@@ -54,7 +69,7 @@ export const columns: ColumnDef<Appointment>[] = [
           <div className="flex items-center gap-2 min-w-[100px]">
             <div 
               className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: appointment.roomColor || '#3B82F6' }}
+              style={{ backgroundColor: appointment.roomColor ? getColorValue(appointment.roomColor) : '#3B82F6' }}
             />
             <p className="text-14-regular">{roomDisplayName}</p>
           </div>
@@ -92,11 +107,22 @@ export const columns: ColumnDef<Appointment>[] = [
 
       return (
         <div className="flex items-center gap-3">
-          <div className="size-8 bg-white/10 rounded-full flex items-center justify-center">
-            <span className="text-white text-sm font-medium">
-              {appointment.primaryPhysician.split(' ').map(n => n[0]).join('')}
-            </span>
-          </div>
+          {/* Avatar lekarza - sprawdź czy ma avatar w danych */}
+          {appointment.doctorAvatar ? (
+            <div className="size-8 rounded-full overflow-hidden">
+              <img
+                src={appointment.doctorAvatar}
+                alt={appointment.primaryPhysician}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="size-8 bg-white/10 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-medium">
+                {appointment.primaryPhysician.split(' ').map(n => n[0]).join('')}
+              </span>
+            </div>
+          )}
           <p className="whitespace-nowrap">Dr. {appointment.primaryPhysician}</p>
         </div>
       );

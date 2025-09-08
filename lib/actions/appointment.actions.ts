@@ -13,22 +13,29 @@ import {
 } from "../appwrite.config";
 import { formatDateTime, parseStringify } from "../utils";
 import { getRooms } from "./room.actions";
+import { getDoctors } from "./doctor.actions";
 
 //  CREATE APPOINTMENT
 export const createAppointment = async (
   appointment: CreateAppointmentParams
 ) => {
   try {
-    // Znajdź gabinet przypisany do specjalisty
-    const rooms = await getRooms();
-    const specialistRoom = rooms.find((room: any) => room.assignedSpecialist === appointment.primaryPhysician);
+    // Znajdź gabinet przypisany do specjalisty i avatar lekarza
+    const [rooms, doctors] = await Promise.all([
+      getRooms(),
+      getDoctors()
+    ]);
     
-    // Przygotuj dane wizyty z informacjami o gabinecie
+    const specialistRoom = rooms.find((room: any) => room.assignedSpecialist === appointment.primaryPhysician);
+    const doctor = doctors.find((doctor: any) => doctor.name === appointment.primaryPhysician);
+    
+    // Przygotuj dane wizyty z informacjami o gabinecie i lekarzu
     const appointmentData = {
       ...appointment,
       roomId: specialistRoom?.$id || null,
       roomName: specialistRoom?.name || null,
       roomColor: specialistRoom?.color || null,
+      doctorAvatar: doctor?.avatar || null,
     };
     
     const newAppointment = await databases.createDocument(
@@ -52,11 +59,16 @@ export const createAppointment = async (
 //  GET RECENT APPOINTMENTS
 export const getRecentAppointmentList = async () => {
   try {
-    const appointments = await databases.listDocuments(
-      DATABASE_ID!,
-      APPOINTMENT_COLLECTION_ID!,
-      [Query.orderDesc("$createdAt")]
-    );
+    // Pobierz wizyty, gabinety i lekarzy równocześnie
+    const [appointments, rooms, doctors] = await Promise.all([
+      databases.listDocuments(
+        DATABASE_ID!,
+        APPOINTMENT_COLLECTION_ID!,
+        [Query.orderDesc("$createdAt")]
+      ),
+      getRooms(),
+      getDoctors()
+    ]);
 
     // const scheduledAppointments = (
     //   appointments.documents as Appointment[]
@@ -129,10 +141,32 @@ export const getRecentAppointmentList = async () => {
       initialCounts
     );
 
+    // Zaktualizuj wizyty z aktualnymi informacjami o gabinetach i lekarzach
+    const updatedAppointments = appointments.documents.map((appointment: any) => {
+      // Znajdź gabinet przypisany do specjalisty
+      const specialistRoom = rooms.find((room: any) => 
+        room.assignedSpecialist === appointment.primaryPhysician
+      );
+      
+      // Znajdź lekarza
+      const doctor = doctors.find((doctor: any) => 
+        doctor.name === appointment.primaryPhysician
+      );
+      
+      return {
+        ...appointment,
+        // Zawsze używaj aktualnych danych z gabinetów i lekarzy
+        roomId: specialistRoom?.$id || appointment.roomId,
+        roomName: specialistRoom?.name || appointment.roomName,
+        roomColor: specialistRoom?.color || appointment.roomColor,
+        doctorAvatar: doctor?.avatar || appointment.doctorAvatar,
+      };
+    });
+
     const data = {
       totalCount: appointments.total,
       ...counts,
-      documents: appointments.documents,
+      documents: updatedAppointments,
     };
 
     return parseStringify(data);
@@ -226,17 +260,42 @@ export const getAppointmentsByPatient = async (userId: string) => {
   try {
     console.log("🔍 Szukam wizyt dla userId:", userId);
     
-    // Szukamy wizyt po userId (który jest przekazywany z URL)
-    const appointments = await databases.listDocuments(
-      DATABASE_ID!,
-      APPOINTMENT_COLLECTION_ID!,
-      [Query.equal("userId", [userId]), Query.orderDesc("schedule")]
-    );
+    // Pobierz wizyty, gabinety i lekarzy równocześnie
+    const [appointments, rooms, doctors] = await Promise.all([
+      databases.listDocuments(
+        DATABASE_ID!,
+        APPOINTMENT_COLLECTION_ID!,
+        [Query.equal("userId", [userId]), Query.orderDesc("schedule")]
+      ),
+      getRooms(),
+      getDoctors()
+    ]);
 
     console.log("📋 Znalezione wizyty dla userId:", appointments.documents.length);
-    console.log("📋 Wizyty:", appointments.documents);
 
-    return parseStringify(appointments.documents);
+    // Zaktualizuj wizyty z aktualnymi informacjami o gabinetach i lekarzach
+    const updatedAppointments = appointments.documents.map((appointment: any) => {
+      // Znajdź gabinet przypisany do specjalisty
+      const specialistRoom = rooms.find((room: any) => 
+        room.assignedSpecialist === appointment.primaryPhysician
+      );
+      
+      // Znajdź lekarza
+      const doctor = doctors.find((doctor: any) => 
+        doctor.name === appointment.primaryPhysician
+      );
+      
+      return {
+        ...appointment,
+        // Zawsze używaj aktualnych danych z gabinetów i lekarzy
+        roomId: specialistRoom?.$id || appointment.roomId,
+        roomName: specialistRoom?.name || appointment.roomName,
+        roomColor: specialistRoom?.color || appointment.roomColor,
+        doctorAvatar: doctor?.avatar || appointment.doctorAvatar,
+      };
+    });
+
+    return parseStringify(updatedAppointments);
   } catch (error) {
     console.error(
       "An error occurred while retrieving patient appointments:",
@@ -284,5 +343,82 @@ export const markAppointmentAsCompleted = async (appointmentId: string) => {
     return parseStringify(updatedAppointment);
   } catch (error) {
     console.error("An error occurred while marking appointment as completed:", error);
+  }
+};
+
+// UPDATE EXISTING APPOINTMENTS WITH ROOM INFO
+export const updateAppointmentsWithRoomInfo = async () => {
+  try {
+    console.log("🔄 Aktualizuję istniejące wizyty z informacjami o gabinecie...");
+    
+    // Pobierz wszystkie wizyty
+    const appointments = await databases.listDocuments(
+      DATABASE_ID!,
+      APPOINTMENT_COLLECTION_ID!,
+      [Query.orderDesc("$createdAt")]
+    );
+
+    // Pobierz wszystkie gabinety i lekarzy
+    const [rooms, doctors] = await Promise.all([
+      getRooms(),
+      getDoctors()
+    ]);
+    
+    let updatedCount = 0;
+    
+    // Dla każdej wizyty sprawdź czy ma przypisany gabinet i avatar lekarza
+    for (const appointment of appointments.documents) {
+      const appointmentData = appointment as any;
+      
+      // Sprawdź czy wizyta potrzebuje aktualizacji
+      const needsRoomUpdate = !appointmentData.roomName && appointmentData.primaryPhysician;
+      const needsAvatarUpdate = !appointmentData.doctorAvatar && appointmentData.primaryPhysician;
+      
+      if (needsRoomUpdate || needsAvatarUpdate) {
+        // Znajdź gabinet przypisany do specjalisty
+        const specialistRoom = rooms.find((room: any) => 
+          room.assignedSpecialist === appointmentData.primaryPhysician
+        );
+        
+        // Znajdź lekarza
+        const doctor = doctors.find((doctor: any) => 
+          doctor.name === appointmentData.primaryPhysician
+        );
+        
+        // Przygotuj dane do aktualizacji
+        const updateData: any = {};
+        
+        if (needsRoomUpdate && specialistRoom) {
+          updateData.roomId = specialistRoom.$id;
+          updateData.roomName = specialistRoom.name;
+          updateData.roomColor = specialistRoom.color;
+        }
+        
+        if (needsAvatarUpdate && doctor) {
+          updateData.doctorAvatar = doctor.avatar;
+        }
+        
+        // Zaktualizuj wizytę jeśli są jakieś dane do aktualizacji
+        if (Object.keys(updateData).length > 0) {
+          await databases.updateDocument(
+            DATABASE_ID!,
+            APPOINTMENT_COLLECTION_ID!,
+            appointmentData.$id,
+            updateData
+          );
+          
+          updatedCount++;
+          console.log(`✅ Zaktualizowano wizytę ${appointmentData.$id}`, updateData);
+        }
+      }
+    }
+    
+    console.log(`🎉 Zaktualizowano ${updatedCount} wizyt z informacjami o gabinecie`);
+    revalidatePath("/admin");
+    
+    return { success: true, updatedCount };
+  } catch (error) {
+    console.error("Błąd podczas aktualizacji wizyt z informacjami o gabinecie:", error);
+    return { success: false, error };
   }
 };

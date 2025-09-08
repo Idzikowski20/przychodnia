@@ -14,11 +14,13 @@ import { columns } from "@/components/table/columns";
 import { DataTable } from "@/components/table/DataTable";
 import { getRecentAppointmentList } from "@/lib/actions/appointment.actions";
 import { useEffect } from "react";
+import { PatientAppointmentModal } from "@/components/PatientAppointmentModal";
 
 const AdminPage = () => {
   const [activeSection, setActiveSection] = useState<"appointments" | "patients" | "specialists" | "office" | "payments" | "settings">("appointments");
   const [appointments, setAppointments] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -34,6 +36,19 @@ const AdminPage = () => {
 
     fetchAppointments();
   }, []);
+
+  const handleRefreshAppointments = async () => {
+    try {
+      const appointmentsData = await getRecentAppointmentList();
+      setAppointments(appointmentsData);
+    } catch (error) {
+      console.error("Błąd podczas odświeżania wizyt:", error);
+    }
+  };
+
+  const handleLogout = () => {
+    window.location.href = '/';
+  };
 
   if (loading || !appointments) {
     return (
@@ -60,32 +75,43 @@ const AdminPage = () => {
   return (
     <div className="mx-auto flex max-w-7xl flex-col space-y-14">
       <header className="admin-header">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="cursor-pointer">
-            <Image
-              src="/assets/icons/logo-full.svg"
-              height={32}
-              width={162}
-              alt="logo"
-              className="h-8 w-fit"
-            />
-          </Link>
+        {/* Logo - zawsze widoczne */}
+        <Link href="/" className="cursor-pointer">
+          <Image
+            src="/assets/icons/logo-full.svg"
+            height={32}
+            width={162}
+            alt="logo"
+            className="h-8 w-fit"
+          />
+        </Link>
+
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center gap-6">
           <AdminNavigation 
             activeSection={activeSection} 
-            onSectionChange={setActiveSection} 
+            onSectionChange={setActiveSection}
+            onLogout={handleLogout}
           />
         </div>
 
-        <div className="flex items-center gap-4">
+        {/* Desktop Logout Button */}
+        <div className="hidden md:flex items-center gap-4">
           <button 
-            onClick={() => {
-              // Tutaj można dodać logikę wylogowania
-              window.location.href = '/';
-            }}
+            onClick={handleLogout}
             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium text-sm"
           >
             Wyloguj
           </button>
+        </div>
+
+        {/* Mobile Navigation */}
+        <div className="md:hidden">
+          <AdminNavigation 
+            activeSection={activeSection} 
+            onSectionChange={setActiveSection}
+            onLogout={handleLogout}
+          />
         </div>
       </header>
 
@@ -147,6 +173,19 @@ const AdminPage = () => {
 
             <AppointmentCalendar appointments={appointments.documents} />
 
+            {/* Przycisk Umów pacjenta */}
+            <div className="flex w-full justify-end">
+              <button
+                onClick={() => setShowAppointmentModal(true)}
+                className="px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg transition-colors font-medium text-lg flex items-center gap-2 shadow-lg"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Umów pacjenta
+              </button>
+            </div>
+
             <DataTable columns={columns} data={appointments.documents} />
           </>
         )}
@@ -164,7 +203,10 @@ const AdminPage = () => {
         {/* Sekcja Biuro */}
         {activeSection === "office" && (
           <div className="w-full bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6">
-            <OfficeView appointments={appointments?.documents || []} />
+            <OfficeView 
+              appointments={appointments?.documents || []} 
+              onRoomChange={handleRefreshAppointments}
+            />
           </div>
         )}
 
@@ -227,7 +269,9 @@ const AdminPage = () => {
               <div className="p-6 border-b border-white/10">
                 <h2 className="text-xl font-semibold text-white">Ostatnie płatności</h2>
               </div>
-              <div className="overflow-x-auto">
+              
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-white/5">
                     <tr>
@@ -259,6 +303,53 @@ const AdminPage = () => {
                     </tr>
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden p-4 space-y-4">
+                {/* Payment Card 1 */}
+                <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-white font-semibold">Jan Kowalski</h3>
+                    <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full">Opłacone</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/70">Data:</span>
+                      <span className="text-white">9 września 2025</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/70">Kwota:</span>
+                      <span className="text-white font-semibold">150 zł</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/70">Metoda:</span>
+                      <span className="text-white">Gotówka</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Card 2 */}
+                <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-white font-semibold">Patryk Idzikowski</h3>
+                    <span className="px-2 py-1 bg-yellow-600 text-white text-xs rounded-full">Oczekujące</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/70">Data:</span>
+                      <span className="text-white">8 września 2025</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/70">Kwota:</span>
+                      <span className="text-white font-semibold">200 zł</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/70">Metoda:</span>
+                      <span className="text-white">Przelew</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -342,6 +433,16 @@ const AdminPage = () => {
           </div>
         )}
       </main>
+
+      {/* Modal umówienia wizyty */}
+      <PatientAppointmentModal
+        open={showAppointmentModal}
+        onOpenChange={setShowAppointmentModal}
+        onSuccess={() => {
+          setShowAppointmentModal(false);
+          handleRefreshAppointments();
+        }}
+      />
     </div>
   );
 };
