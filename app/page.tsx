@@ -1,14 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { PatientForm } from "@/components/forms/PatientForm";
 import { PasskeyModal } from "@/components/PasskeyModal";
+import HomeAuthSwitcher from "@/components/HomeAuthSwitcher";
 
 const Home = ({ searchParams }: SearchParamProps) => {
   const isAdmin = searchParams?.admin === "true";
 
   return (
-    <div className="flex h-screen max-h-screen">
+    <div className="flex h-screen max-h-screen bg-white">
       {isAdmin && <PasskeyModal />}
 
       <section className="remove-scrollbar container my-auto">
@@ -21,10 +21,10 @@ const Home = ({ searchParams }: SearchParamProps) => {
             className="mb-12 h-10 w-fit"
           />
 
-          <PatientForm />
+          <HomeAuthSwitcher />
 
           <div className="text-14-regular mt-20 flex justify-between">
-            <p className="justify-items-end text-dark-600 xl:text-left">
+            <p className="justify-items-end text-gray-600 xl:text-left">
               © 2024 CarePulse
             </p>
             <Link href="/?admin=true" className="text-green-500">

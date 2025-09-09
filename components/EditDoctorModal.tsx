@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -8,9 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Doctor } from "@/types/appwrite.types";
 import { updateDoctor } from "@/lib/actions/doctor.actions";
 import { uploadFileToStorage } from "@/lib/upload";
+import { Doctor } from "@/types/appwrite.types";
+
 import { FileUploader } from "./FileUploader";
 
 type EditDoctorModalProps = {
@@ -117,7 +119,7 @@ export const EditDoctorModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" data-admin-modal="true">
           {/* Podstawowe informacje */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-white">Podstawowe informacje</h3>

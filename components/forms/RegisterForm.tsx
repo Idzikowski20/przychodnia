@@ -1,5 +1,8 @@
 "use client";
 
+import "react-datepicker/dist/react-datepicker.css";
+import "react-phone-number-input/style.css";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -11,24 +14,16 @@ import { Form, FormControl } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SelectItem } from "@/components/ui/select";
-import {
-  Doctors,
-  GenderOptions,
-  PatientFormDefaultValues,
-  InsuranceProviders,
-} from "@/constants";
-import { registerPatient } from "@/lib/actions/patient.actions";
+import { GenderOptions, PatientFormDefaultValues, InsuranceProviders } from "@/constants";
 import { getDoctors } from "@/lib/actions/doctor.actions";
+import { registerPatient } from "@/lib/actions/patient.actions";
 import { PatientFormValidation } from "@/lib/validation";
 import { Doctor } from "@/types/appwrite.types";
 
-import "react-datepicker/dist/react-datepicker.css";
-import "react-phone-number-input/style.css";
 import CustomFormField, { FormFieldType } from "../CustomFormField";
-import { FileUploader } from "../FileUploader";
 import SubmitButton from "../SubmitButton";
 
-const RegisterForm = ({ user }: { user: User }) => {
+const RegisterForm = ({ user, isAdminModal = false }: { user: User; isAdminModal?: boolean }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -100,13 +95,13 @@ const RegisterForm = ({ user }: { user: User }) => {
         className="flex-1"
       >
         <section className="space-y-4">
-          <h1 className="header">Witamy 👋</h1>
-          <p className="text-dark-700">Pozwól nam poznać Cię lepiej.</p>
+          <h1 className={`header ${isAdminModal ? 'text-white' : ''}`}>Witamy 👋</h1>
+          <p className={isAdminModal ? 'text-white/70' : 'text-dark-700'}>Pozwól nam poznać Cię lepiej.</p>
         </section>
 
         <section className="space-y-6">
           <div className="mb-9 space-y-1">
-            <h2 className="sub-header">Dane osobowe</h2>
+            <h2 className={`sub-header ${isAdminModal ? 'text-white' : ''}`}>Dane osobowe</h2>
           </div>
 
           {/* NAME */}
@@ -118,6 +113,7 @@ const RegisterForm = ({ user }: { user: User }) => {
             placeholder="John Doe"
             iconSrc="/assets/icons/user.svg"
             iconAlt="user"
+            isAdminModal={isAdminModal}
           />
 
           {/* EMAIL & PHONE */}
@@ -130,7 +126,8 @@ const RegisterForm = ({ user }: { user: User }) => {
               placeholder="jan.kowalski@gmail.com"
               iconSrc="/assets/icons/email.svg"
               iconAlt="email"
-            />
+              isAdminModal={isAdminModal}
+          />
 
             <CustomFormField
               fieldType={FormFieldType.PHONE_INPUT}
@@ -138,7 +135,8 @@ const RegisterForm = ({ user }: { user: User }) => {
               name="phone"
               label="Numer telefonu"
               placeholder="+48 123 456 789"
-            />
+              isAdminModal={isAdminModal}
+          />
           </div>
 
           {/* BirthDate & Gender */}
@@ -149,7 +147,8 @@ const RegisterForm = ({ user }: { user: User }) => {
               name="birthDate"
               label="Data urodzenia"
               dateFormat="dd/MM/yyyy"
-            />
+              isAdminModal={isAdminModal}
+          />
 
             <CustomFormField
               fieldType={FormFieldType.SKELETON}
@@ -174,7 +173,8 @@ const RegisterForm = ({ user }: { user: User }) => {
                   </RadioGroup>
                 </FormControl>
               )}
-            />
+            isAdminModal={isAdminModal}
+          />
           </div>
 
           {/* Address & Occupation */}
@@ -185,7 +185,8 @@ const RegisterForm = ({ user }: { user: User }) => {
               name="address"
               label="Adres"
               placeholder="ul. Przykładowa 14, 00-001 Warszawa"
-            />
+            isAdminModal={isAdminModal}
+          />
 
             <CustomFormField
               fieldType={FormFieldType.INPUT}
@@ -193,7 +194,8 @@ const RegisterForm = ({ user }: { user: User }) => {
               name="occupation"
               label="Zawód"
               placeholder="Inżynier oprogramowania"
-            />
+            isAdminModal={isAdminModal}
+          />
           </div>
 
           {/* Emergency Contact Name & Emergency Contact Number */}
@@ -204,7 +206,8 @@ const RegisterForm = ({ user }: { user: User }) => {
               name="emergencyContactName"
               label="Imię i nazwisko kontaktu awaryjnego"
               placeholder="Imię i nazwisko opiekuna"
-            />
+            isAdminModal={isAdminModal}
+          />
 
             <CustomFormField
               fieldType={FormFieldType.PHONE_INPUT}
@@ -212,13 +215,14 @@ const RegisterForm = ({ user }: { user: User }) => {
               name="emergencyContactNumber"
               label="Numer telefonu kontaktu awaryjnego"
               placeholder="+48 123 456 789"
-            />
+            isAdminModal={isAdminModal}
+          />
           </div>
         </section>
 
         <section className="space-y-6">
           <div className="mb-9 space-y-1">
-            <h2 className="sub-header">Informacje medyczne</h2>
+            <h2 className={`sub-header ${isAdminModal ? 'text-white' : ''}`}>Informacje medyczne</h2>
           </div>
 
           {/* PRIMARY CARE PHYSICIAN */}
@@ -278,7 +282,8 @@ const RegisterForm = ({ user }: { user: User }) => {
               name="insurancePolicyNumber"
               label="Numer polisy ubezpieczeniowej"
               placeholder="ABC123456789"
-            />
+            isAdminModal={isAdminModal}
+          />
           </div>
 
           {/* ALLERGY & CURRENT MEDICATIONS */}
@@ -289,7 +294,8 @@ const RegisterForm = ({ user }: { user: User }) => {
               name="allergies"
               label="Alergie (jeśli występują)"
               placeholder="Orzechy, Penicylina, Pyłki"
-            />
+            isAdminModal={isAdminModal}
+          />
 
             <CustomFormField
               fieldType={FormFieldType.TEXTAREA}
@@ -297,7 +303,8 @@ const RegisterForm = ({ user }: { user: User }) => {
               name="currentMedication"
               label="Aktualnie przyjmowane leki"
               placeholder="Ibuprofen 200mg, Lewotyroksyna 50mcg"
-            />
+            isAdminModal={isAdminModal}
+          />
           </div>
 
           {/* FAMILY MEDICATION & PAST MEDICATIONS */}
@@ -308,7 +315,8 @@ const RegisterForm = ({ user }: { user: User }) => {
               name="familyMedicalHistory"
               label="Historia medyczna rodziny (jeśli istotna)"
               placeholder="Matka miała raka mózgu, ojciec ma nadciśnienie"
-            />
+            isAdminModal={isAdminModal}
+          />
 
             <CustomFormField
               fieldType={FormFieldType.TEXTAREA}
@@ -316,14 +324,15 @@ const RegisterForm = ({ user }: { user: User }) => {
               name="pastMedicalHistory"
               label="Przebyte choroby"
               placeholder="Wycięcie wyrostka w 2015, rozpoznanie astmy w dzieciństwie"
-            />
+            isAdminModal={isAdminModal}
+          />
           </div>
         </section>
 
 
         <section className="space-y-6">
           <div className="mb-9 space-y-1">
-            <h2 className="sub-header">Zgody i prywatność</h2>
+            <h2 className={`sub-header ${isAdminModal ? 'text-white' : ''}`}>Zgody i prywatność</h2>
           </div>
 
           <CustomFormField

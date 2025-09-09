@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
-import { Patient } from "@/types/appwrite.types";
+import { MagnifyingGlassIcon, FunnelIcon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { useMemo, useState, useEffect } from "react";
+
 import { getPatients } from "@/lib/actions/patient.actions";
+import { Patient } from "@/types/appwrite.types";
+
+import { ControlledAppointmentModal } from "./ControlledAppointmentModal";
 import { PatientDetailsModal } from "./PatientDetailsModal";
 import { PatientHistoryModal } from "./PatientHistoryModal";
-import { ControlledAppointmentModal } from "./ControlledAppointmentModal";
-import { MagnifyingGlassIcon, FunnelIcon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 
 export const PatientsList = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -21,7 +23,6 @@ export const PatientsList = () => {
   const [genderFilter, setGenderFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [showGenderDropdown, setShowGenderDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -63,10 +64,7 @@ export const PatientsList = () => {
     setSelectedPatient(null);
   };
 
-  const handleAppointmentModalClose = () => {
-    setIsAppointmentModalOpen(false);
-    setSelectedPatient(null);
-  };
+  // usunięte: nieużywana funkcja handleAppointmentModalClose
 
   // Filtered patients based on search and filters
   const filteredPatients = useMemo(() => {

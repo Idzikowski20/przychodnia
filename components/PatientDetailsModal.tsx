@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import Image from "next/image";
+
+import { Doctors } from "@/constants";
 import { formatDateTime } from "@/lib/utils";
 import { Patient } from "@/types/appwrite.types";
-import { Doctors } from "@/constants";
 
 type PatientDetailsModalProps = {
   patient: Patient;

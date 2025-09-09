@@ -206,6 +206,14 @@ export const updateAppointment = async ({
   adminNotes,
 }: UpdateAppointmentParams) => {
   try {
+    // Walidacja wymaganych parametrów
+    if (!appointmentId) {
+      throw new Error("Appointment ID is required");
+    }
+    if (!userId) {
+      throw new Error("User ID is required");
+    }
+
     // Przygotuj dane do aktualizacji
     let updateData: any = {};
     
@@ -302,6 +310,65 @@ export const getAppointmentsByPatient = async (userId: string) => {
       "An error occurred while retrieving patient appointments:",
       error
     );
+  }
+};
+
+// GET APPOINTMENTS BY DOCTOR AND DATE
+export const getAppointmentsByDoctorAndDate = async (doctorName: string, date: Date) => {
+  try {
+    console.log("🔍 Szukam wizyt dla lekarza:", doctorName, "w dniu (LOCAL):", date);
+
+    // Pomocniczo: lokalny klucz daty YYYY-MM-DD, aby uniknąć przesunięć stref czasowych
+    const toLocalDateKey = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    // Lokalny klucz dnia dla wybranej daty
+    const dateString = toLocalDateKey(date);
+    
+    // Pobierz wszystkie wizyty dla danego lekarza
+    const appointments = await databases.listDocuments(
+      DATABASE_ID!,
+      APPOINTMENT_COLLECTION_ID!,
+      [Query.equal("primaryPhysician", [doctorName])]
+    );
+
+    console.log("📋 Znalezione wizyty dla lekarza:", appointments.documents.length);
+
+    // Filtruj wizyty dla konkretnego dnia (LOKALNIE) i wyklucz anulowane/zakończone
+    const dayAppointments = appointments.documents.filter((appointment: any) => {
+      const appointmentDate = new Date(appointment.schedule);
+      const appointmentDateString = toLocalDateKey(appointmentDate);
+      
+      // Sprawdź czy wizyta jest w tym dniu
+      if (appointmentDateString !== dateString) return false;
+      
+      // Sprawdź status wizyty - wyklucz anulowane i zakończone
+      const status = appointment.status;
+      if (Array.isArray(status)) {
+        // Jeśli status to tablica, sprawdź czy zawiera "cancelled" lub "completed"
+        if (status.includes("cancelled") || status.includes("completed")) {
+          return false;
+        }
+      } else if (typeof status === "string") {
+        // Jeśli status to string, sprawdź czy to "cancelled" lub "completed"
+        if (status === "cancelled" || status === "completed") {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+
+    console.log("📅 Wizyty w dniu", dateString, ":", dayAppointments.length);
+
+    return parseStringify(dayAppointments);
+  } catch (error) {
+    console.error("An error occurred while retrieving doctor appointments for date:", error);
+    return [];
   }
 };
 

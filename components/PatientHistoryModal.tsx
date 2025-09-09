@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { formatDateTime } from "@/lib/utils";
-import { Patient, Appointment } from "@/types/appwrite.types";
+import { useState, useEffect } from "react";
+
 import { getAppointmentsByPatient } from "@/lib/actions/appointment.actions";
+import { formatDateTime } from "@/lib/utils";
+import { Appointment, Patient } from "@/types/appwrite.types";
+
 import { ControlledAppointmentModal } from "./ControlledAppointmentModal";
 
 type PatientHistoryModalProps = {
@@ -115,7 +117,6 @@ export const PatientHistoryModal = ({
 
                   const hasAccepted = statuses.includes("accepted");
                   const hasCancelled = statuses.includes("cancelled");
-                  const hasScheduled = statuses.includes("scheduled");
                   const hasAwaiting = statuses.includes("awaiting") || statuses.includes("pending");
                   const hasCompleted = statuses.includes("completed");
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,10 +16,9 @@ import { Doctors } from "@/constants";
 import { formatDateTime } from "@/lib/utils";
 import { Appointment } from "@/types/appwrite.types";
 
-import { AppointmentForm } from "./forms/AppointmentForm";
-import { StatusBadge } from "./StatusBadge";
-import { ControlledAppointmentModal } from "./ControlledAppointmentModal";
 import { AppointmentNotesModal } from "./AppointmentNotesModal";
+import { ControlledAppointmentModal } from "./ControlledAppointmentModal";
+import { StatusBadge } from "./StatusBadge";
 
 export const AppointmentDetails = ({
   appointment,
@@ -59,10 +58,6 @@ export const AppointmentDetails = ({
     setShowActionModal(true);
   };
 
-  const handleActionModalClose = () => {
-    setShowActionModal(false);
-    setOpen(false);
-  };
 
   return (
     <>

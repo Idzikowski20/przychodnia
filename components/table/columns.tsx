@@ -1,10 +1,14 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import Image from "next/image";
 
-import { formatDateTime } from "@/lib/utils";
+import { markAppointmentAsCompleted } from "@/lib/actions/appointment.actions";
 import { Appointment } from "@/types/appwrite.types";
+
+import { AppointmentDetails } from "../AppointmentDetails";
+import { AppointmentModal } from "../AppointmentModal";
+import { AppointmentNotesModal } from "../AppointmentNotesModal";
+import { StatusBadge } from "../StatusBadge";
 
 // Mapowanie nazw kolorów na wartości hex
 const getColorValue = (colorName: string) => {
@@ -20,12 +24,6 @@ const getColorValue = (colorName: string) => {
   };
   return colorMap[colorName] || '#10b981';
 };
-
-import { AppointmentModal } from "../AppointmentModal";
-import { AppointmentDetails } from "../AppointmentDetails";
-import { AppointmentNotesModal } from "../AppointmentNotesModal";
-import { markAppointmentAsCompleted } from "@/lib/actions/appointment.actions";
-import { StatusBadge } from "../StatusBadge";
 
 export const columns: ColumnDef<Appointment>[] = [
   {

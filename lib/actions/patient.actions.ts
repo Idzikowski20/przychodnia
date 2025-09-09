@@ -89,11 +89,21 @@ export const registerPatient = async (patient: RegisterUserParams) => {
 // GET PATIENT
 export const getPatient = async (userId: string) => {
   try {
+    if (!userId) {
+      console.error("User ID is required");
+      return null;
+    }
+
     const patients = await databases.listDocuments(
       DATABASE_ID!,
       PATIENT_COLLECTION_ID!,
       [Query.equal("userId", [userId])]
     );
+
+    if (patients.documents.length === 0) {
+      console.error("Patient not found for userId:", userId);
+      return null;
+    }
 
     return parseStringify(patients.documents[0]);
   } catch (error) {
@@ -101,6 +111,7 @@ export const getPatient = async (userId: string) => {
       "An error occurred while retrieving the patient details:",
       error
     );
+    return null;
   }
 };
 

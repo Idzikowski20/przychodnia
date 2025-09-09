@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { CalendarDaysIcon, UsersIcon, HomeIcon, Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { CreditCardIcon, SettingsIcon, UserIcon } from "lucide-react";
+import { useState } from "react";
 
 type AdminNavigationProps = {
   activeSection: "appointments" | "patients" | "specialists" | "office" | "payments" | "settings";

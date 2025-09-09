@@ -47,7 +47,7 @@ export const AddDoctorModal = ({ onDoctorAdded }: AddDoctorModalProps) => {
           </DialogDescription>
         </DialogHeader>
         
-        <DoctorForm onSuccess={handleSuccess} onCancel={handleCancel} />
+        <DoctorForm onSuccess={handleSuccess} onCancel={handleCancel} isAdminModal={true} />
       </DialogContent>
     </Dialog>
   );

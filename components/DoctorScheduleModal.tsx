@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -8,9 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Doctor, WorkingHours } from "@/types/appwrite.types";
 import { updateDoctorSchedule } from "@/lib/actions/doctor.actions";
-import SubmitButton from "./SubmitButton";
+import { Doctor, WorkingHours } from "@/types/appwrite.types";
 
 type DoctorScheduleModalProps = {
   doctor: Doctor | null;

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
 import { PencilIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { useState, useEffect, useRef } from "react";
+
 import { getDoctors } from "@/lib/actions/doctor.actions";
 import { getRooms, updateRoom, createRoom, removeDuplicateRooms } from "@/lib/actions/room.actions";
 import { Room } from "@/types/appwrite.types";
@@ -158,7 +159,7 @@ export const OfficeView = ({ appointments = [], onRoomChange }: OfficeViewProps)
   const handleAssignSpecialist = async (roomId: string, specialistName: string) => {
     try {
       await updateRoom({
-        roomId: roomId,
+        roomId,
         room: { assignedSpecialist: specialistName }
       });
       
@@ -188,8 +189,8 @@ export const OfficeView = ({ appointments = [], onRoomChange }: OfficeViewProps)
   const handleColorChange = async (roomId: string, color: string) => {
     try {
       await updateRoom({
-        roomId: roomId,
-        room: { color: color }
+        roomId,
+        room: { color }
       });
       
       // Odśwież listę gabinetów i usuń duplikaty
@@ -209,23 +210,6 @@ export const OfficeView = ({ appointments = [], onRoomChange }: OfficeViewProps)
     }
   };
 
-  const handleUnassignSpecialist = async (roomId: string) => {
-    try {
-      await updateRoom({
-        roomId: roomId,
-        room: { assignedSpecialist: "" }
-      });
-      
-      // Odśwież listę gabinetów i usuń duplikaty
-      const updatedRooms = await getRooms();
-      const uniqueRooms = updatedRooms.filter((room: any, index: number, self: any[]) => 
-        index === self.findIndex((r: any) => r.name === room.name)
-      );
-      setRooms(uniqueRooms.map((room: any) => ({ ...room, isOccupied: false })));
-    } catch (error) {
-      console.error("Błąd podczas usuwania przypisania specjalisty:", error);
-    }
-  };
 
   const handleRemoveDuplicates = async () => {
     try {
@@ -530,7 +514,7 @@ export const OfficeView = ({ appointments = [], onRoomChange }: OfficeViewProps)
       <div className="text-center text-white/50 text-sm">
         <p>Kliknij ikonę ołówka aby edytować nazwę gabinetu</p>
         <p>Kliknij kolor aby zmienić kolor gabinetu</p>
-        <p>Użyj przycisku "Przypisz" aby przypisać specjalistę do gabinetu</p>
+        <p>Użyj przycisku &quot;Przypisz&quot; aby przypisać specjalistę do gabinetu</p>
       </div>
     </div>
   );

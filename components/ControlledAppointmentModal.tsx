@@ -1,5 +1,7 @@
 "use client";
 
+import "react-datepicker/dist/react-datepicker.css";
+
 import {
   Dialog,
   DialogContent,
@@ -8,9 +10,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Appointment } from "@/types/appwrite.types";
-import { AppointmentForm } from "./forms/AppointmentForm";
 
-import "react-datepicker/dist/react-datepicker.css";
+import { AppointmentForm } from "./forms/AppointmentForm";
 
 type ControlledAppointmentModalProps = {
   patientId: string;
@@ -51,6 +52,7 @@ export const ControlledAppointmentModal = ({
           type={type}
           appointment={appointment}
           setOpen={(value) => onOpenChange(typeof value === 'function' ? value(open) : value)}
+          isAdminModal={true}
         />
       </DialogContent>
     </Dialog>

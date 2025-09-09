@@ -1,14 +1,16 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+
 import { createDoctor } from "@/lib/actions/doctor.actions";
 import { uploadFileToStorage } from "@/lib/upload";
-import SubmitButton from "../SubmitButton";
+import { WorkingHours } from "@/types/appwrite.types";
+
 import { FileUploader } from "../FileUploader";
-import { WorkingHours, Doctor } from "@/types/appwrite.types";
+import SubmitButton from "../SubmitButton";
 
 const doctorSchema = z.object({
   name: z.string().min(2, "Imię i nazwisko musi mieć co najmniej 2 znaki"),
@@ -51,9 +53,10 @@ const dayNames = {
 type DoctorFormProps = {
   onSuccess?: () => void;
   onCancel?: () => void;
+  isAdminModal?: boolean;
 };
 
-export const DoctorForm = ({ onSuccess, onCancel }: DoctorFormProps) => {
+export const DoctorForm = ({ onSuccess, onCancel, isAdminModal = false }: DoctorFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [workingHours, setWorkingHours] = useState<WorkingHours>(defaultWorkingHours);
   const [files, setFiles] = useState<File[]>([]);

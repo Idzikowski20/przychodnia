@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { ChevronDownIcon, ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { useState } from "react";
 
 import { formatDateTime } from "@/lib/utils";
 import { Appointment } from "@/types/appwrite.types";

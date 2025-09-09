@@ -1,15 +1,15 @@
 import Image from "next/image";
 
-import { AppointmentForm } from "@/components/forms/AppointmentForm";
+import { PatientDashboard } from "@/components/PatientDashboard";
 import { getPatient } from "@/lib/actions/patient.actions";
 
-const Appointment = async ({ params: { userId } }: SearchParamProps) => {
+const Dashboard = async ({ params: { userId } }: SearchParamProps) => {
   const patient = await getPatient(userId);
 
   return (
     <div className="min-h-screen bg-white">
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <Image
             src="/assets/icons/logo-full.svg"
             height={1000}
@@ -18,22 +18,12 @@ const Appointment = async ({ params: { userId } }: SearchParamProps) => {
             className="mb-12 h-10 w-fit"
           />
 
-          <AppointmentForm
-            patientId={patient?.$id}
-            userId={userId}
-            type="create"
-          />
+          <PatientDashboard patient={patient} userId={userId} />
 
           <div className="text-14-regular mt-20 flex justify-between">
             <p className="justify-items-end text-gray-600 xl:text-left">
               © 2024 CarePulse
             </p>
-            <a 
-              href="/?admin=true"
-              className="text-green-500"
-            >
-              Administrator
-            </a>
           </div>
         </div>
       </div>
@@ -41,4 +31,4 @@ const Appointment = async ({ params: { userId } }: SearchParamProps) => {
   );
 };
 
-export default Appointment;
+export default Dashboard;

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Doctor, WorkingHours } from "@/types/appwrite.types";
+
 import { getDoctors } from "@/lib/actions/doctor.actions";
 import { getRooms } from "@/lib/actions/room.actions";
+import { Doctor, WorkingHours } from "@/types/appwrite.types";
+
 import { AddDoctorModal } from "./AddDoctorModal";
 import { DoctorScheduleModal } from "./DoctorScheduleModal";
 import { EditDoctorModal } from "./EditDoctorModal";
@@ -58,15 +60,7 @@ export const DoctorsList = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleScheduleModalClose = () => {
-    setIsScheduleModalOpen(false);
-    setSelectedDoctor(null);
-  };
-
-  const handleEditModalClose = () => {
-    setIsEditModalOpen(false);
-    setSelectedDoctor(null);
-  };
+  
 
   const handleScheduleUpdated = () => {
     // Odśwież listę po aktualizacji harmonogramu

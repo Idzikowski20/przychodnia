@@ -1,7 +1,8 @@
 /* eslint-disable no-unused-vars */
 import { E164Number } from "libphonenumber-js/core";
 import Image from "next/image";
-import ReactDatePicker from "react-datepicker";
+import ReactDatePicker, { registerLocale } from "react-datepicker";
+import { pl } from "date-fns/locale";
 import { Control } from "react-hook-form";
 import PhoneInput from "react-phone-number-input";
 
@@ -16,6 +17,9 @@ import {
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "./ui/select";
 import { Textarea } from "./ui/textarea";
+
+// Register Polish locale
+registerLocale("pl", pl);
 
 export enum FormFieldType {
   INPUT = "input",
@@ -42,27 +46,39 @@ interface CustomProps {
   children?: React.ReactNode;
   renderSkeleton?: (field: any) => React.ReactNode;
   fieldType: FormFieldType;
+  onValueChange?: (value: any) => void | Promise<void>;
+  availableTimes?: string[];
+  workingDays?: string[];
+  isAdminModal?: boolean;
 }
 
 const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
   switch (props.fieldType) {
     case FormFieldType.INPUT:
       return (
-        <div className="flex rounded-md border border-dark-500 bg-dark-400">
+        <div className={`flex rounded-md shadow-sm ${
+          props.isAdminModal 
+            ? 'border border-white/20 bg-white/10' 
+            : 'border border-gray-200 bg-white'
+        }`}>
           {props.iconSrc && (
             <Image
               src={props.iconSrc}
               height={24}
               width={24}
               alt={props.iconAlt || "icon"}
-              className="ml-2"
+              className="ml-3 my-3"
             />
           )}
           <FormControl>
             <Input
               placeholder={props.placeholder}
               {...field}
-              className="shad-input border-0"
+              className={`border-0 bg-transparent focus:ring-0 ${
+                props.isAdminModal 
+                  ? 'text-white placeholder:text-white/50' 
+                  : 'text-gray-900 placeholder:text-gray-500'
+              }`}
             />
           </FormControl>
         </div>
@@ -73,7 +89,11 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
           <Textarea
             placeholder={props.placeholder}
             {...field}
-            className="shad-textArea"
+            className={`shadow-sm focus:ring-0 ${
+              props.isAdminModal 
+                ? 'border border-white/20 bg-white/10 text-white placeholder:text-white/50 focus:border-white/30' 
+                : 'border border-gray-200 bg-white text-gray-900 placeholder:text-gray-500 focus:border-gray-300'
+            }`}
             disabled={props.disabled}
           />
         </FormControl>
@@ -109,21 +129,32 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
       );
     case FormFieldType.DATE_PICKER:
       return (
-        <div className="flex rounded-md border border-dark-500 bg-dark-400">
+        <div className={`flex rounded-md shadow-sm ${
+          props.isAdminModal 
+            ? 'border border-white/20 bg-white/10' 
+            : 'border border-gray-200 bg-white'
+        }`}>
           <Image
             src="/assets/icons/calendar.svg"
             height={24}
             width={24}
             alt="user"
-            className="ml-2"
+            className="ml-3 my-3"
           />
           <FormControl>
             <ReactDatePicker
               showTimeSelect={props.showTimeSelect ?? false}
+              timeIntervals={15}
               selected={field.value}
-              onChange={(date: Date) => field.onChange(date)}
-              timeInputLabel="Time:"
-              dateFormat={props.dateFormat ?? "MM/dd/yyyy"}
+              // Pokaż tylko dostępne czasy: jeżeli są, włącz także filterTime
+              onChange={async (date: Date) => {
+                field.onChange(date);
+                if (props.onValueChange) {
+                  await props.onValueChange(date);
+                }
+              }}
+              timeInputLabel="Godzina:"
+              dateFormat={props.dateFormat ?? "dd/MM/yyyy"}
               wrapperClassName="date-picker"
               showMonthDropdown
               showYearDropdown
@@ -139,6 +170,32 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
               calendarClassName="react-datepicker-calendar"
               withPortal={false}
               fixedHeight
+              autoComplete="off"
+              locale="pl"
+              /* Przywrócenie poprzedniego wyglądu: bez wymuszonego min/maxTime */
+              includeTimes={props.availableTimes && props.availableTimes.length > 0 ? props.availableTimes.map(time => {
+                const [hours, minutes] = time.split(':');
+                // Bazuj na aktualnie wybranej dacie, aby uniknąć przesunięć strefowych
+                const base = field.value instanceof Date ? new Date(field.value) : new Date();
+                base.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                return base;
+              }) : undefined}
+              filterTime={props.availableTimes && props.availableTimes.length > 0 ? (date) => {
+                const h = String(date.getHours()).padStart(2, '0');
+                const m = String(date.getMinutes()).padStart(2, '0');
+                return props.availableTimes!.includes(`${h}:${m}`);
+              } : undefined}
+              filterDate={(date) => {
+                if (!props.workingDays || props.workingDays.length === 0) return true;
+                
+                const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+                return props.workingDays.includes(dayOfWeek);
+              }}
+              className={`border-0 bg-transparent focus:ring-0 w-full ${
+                props.isAdminModal 
+                  ? 'text-white placeholder:text-white/50' 
+                  : 'text-gray-900 placeholder:text-gray-500'
+              }`}
             />
           </FormControl>
         </div>
@@ -146,13 +203,29 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
     case FormFieldType.SELECT:
       return (
         <FormControl>
-          <Select onValueChange={field.onChange} defaultValue={field.value}>
+          <Select 
+            onValueChange={async (value) => {
+              field.onChange(value);
+              if (props.onValueChange) {
+                await props.onValueChange(value);
+              }
+            }} 
+            defaultValue={field.value}
+          >
             <FormControl>
-              <SelectTrigger className="shad-select-trigger">
+              <SelectTrigger className={`shadow-sm focus:ring-0 ${
+                props.isAdminModal 
+                  ? 'border border-white/20 bg-white/10 text-white focus:border-white/30' 
+                  : 'border border-gray-200 bg-white text-gray-900 focus:border-gray-300'
+              }`}>
                 <SelectValue placeholder={props.placeholder} />
               </SelectTrigger>
             </FormControl>
-            <SelectContent className="shad-select-content">
+            <SelectContent className={`shadow-lg ${
+              props.isAdminModal 
+                ? 'bg-white/10 border border-white/20' 
+                : 'bg-white border border-gray-200'
+            }`}>
               {props.children}
             </SelectContent>
           </Select>
@@ -175,7 +248,9 @@ const CustomFormField = (props: CustomProps) => {
       render={({ field }) => (
         <FormItem className="flex-1">
           {props.fieldType !== FormFieldType.CHECKBOX && label && (
-            <FormLabel className="shad-input-label">{label}</FormLabel>
+            <FormLabel className={`font-medium ${
+              props.isAdminModal ? 'text-white' : 'text-gray-900'
+            }`}>{label}</FormLabel>
           )}
           <RenderInput field={field} props={props} />
 

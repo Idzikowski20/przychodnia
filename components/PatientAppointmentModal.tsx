@@ -1,15 +1,16 @@
 "use client";
 
+import "react-phone-number-input/style.css";
+
+import { XMarkIcon, UserIcon, UserPlusIcon } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
-import { Patient } from "@/types/appwrite.types";
+import PhoneInput from "react-phone-number-input";
+
 import { getPatients } from "@/lib/actions/patient.actions";
-import { PatientForm } from "./forms/PatientForm";
+import { Patient } from "@/types/appwrite.types";
+
 import { ControlledAppointmentModal } from "./ControlledAppointmentModal";
 import RegisterForm from "./forms/RegisterForm";
-import { XMarkIcon, UserIcon, UserPlusIcon } from "@heroicons/react/24/outline";
-import { AppointmentForm } from "./forms/AppointmentForm";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
 
 type PatientAppointmentModalProps = {
   open: boolean;
@@ -76,20 +77,7 @@ export const PatientAppointmentModal = ({ open, onOpenChange, onSuccess }: Patie
     setCurrentStep("appointment");
   };
 
-  const handleNewPatientSuccess = (patient: Patient) => {
-    setSelectedPatient(patient);
-    setCurrentStep("appointment");
-  };
-
-  const handleRegisterSuccess = (patient: Patient) => {
-    setSelectedPatient(patient);
-    setCurrentStep("appointment");
-  };
-
-  const handleAppointmentSuccess = () => {
-    handleClose();
-    onSuccess?.();
-  };
+  // Nieużywane funkcje usunięte
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -233,7 +221,7 @@ export const PatientAppointmentModal = ({ open, onOpenChange, onSuccess }: Patie
                       type="text"
                       value={basicPatientData.name}
                       onChange={(e) => setBasicPatientData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Błażej Nowak"
+                      placeholder="Imię i nazwisko"
                       className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     />
                   </div>
@@ -253,7 +241,7 @@ export const PatientAppointmentModal = ({ open, onOpenChange, onSuccess }: Patie
                       type="email"
                       value={basicPatientData.email}
                       onChange={(e) => setBasicPatientData(prev => ({ ...prev, email: e.target.value }))}
-                      placeholder="blazej.nowak@gmail.com"
+                      placeholder="Email"
                       className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     />
                   </div>
@@ -306,7 +294,7 @@ export const PatientAppointmentModal = ({ open, onOpenChange, onSuccess }: Patie
 
             {user && (
               <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                <RegisterForm user={user} />
+                <RegisterForm user={user} isAdminModal={true} />
               </div>
             )}
           </div>
