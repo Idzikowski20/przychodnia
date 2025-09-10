@@ -96,7 +96,12 @@
 
   /* ==== FORM */
   .radio-group {
-    @apply flex h-full flex-1 items-center gap-2 rounded-md border border-dashed border-dark-500 bg-dark-400 p-3;
+    /* Domyślnie jasny wariant (pacjent) */
+    @apply flex h-full flex-1 items-center gap-2 rounded-md border border-gray-200 bg-white p-3 shadow-sm;
+  }
+  /* Ciemny wariant tylko w modalach admina */
+  .shad-dialog .radio-group {
+    @apply border border-white/20 bg-white/10 shadow-none;
   }
 
   .checkbox-label {
@@ -271,6 +276,19 @@
     @apply mt-2 h-11 rounded-md px-3 text-sm border bg-white placeholder:text-gray-500 border-gray-200 text-gray-900 shadow-sm !important;
   }
 
+  /* Wymuś jasny wygląd selektora kraju w PhoneInput */
+  .PhoneInputCountrySelect {
+    background-color: #ffffff !important;
+    color: #111827 !important; /* slate-900 */
+    border: 1px solid #e5e7eb !important; /* gray-200 */
+    border-radius: 0.375rem !important; /* rounded-md */
+    padding: 0.5rem 0.75rem !important;
+    color-scheme: light !important;
+  }
+  .PhoneInputCountry {
+    color-scheme: light !important;
+  }
+
   /* =====  REACT DATE PICKER OVERRIDES */
   .date-picker {
     @apply overflow-hidden border-transparent w-full placeholder:text-gray-500 text-gray-900 h-11 text-14-medium rounded-md px-3 outline-none !important;
@@ -299,6 +317,12 @@
 .react-datepicker__day-name,
 .react-datepicker-time__header {
   color: #1f2937 !important;
+}
+
+/* Wymuś jasny tryb dla całego poppera datepickera */
+.react-datepicker-popper,
+.react-datepicker-calendar {
+  color-scheme: light !important;
 }
 
 .react-datepicker__triangle {

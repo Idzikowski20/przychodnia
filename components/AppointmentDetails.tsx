@@ -33,9 +33,7 @@ export const AppointmentDetails = ({
   const [showActionModal, setShowActionModal] = useState(false);
   const [actionType, setActionType] = useState<"schedule" | "plan" | "cancel" | "create">("schedule");
 
-  const doctor = Doctors.find(
-    (doctor) => doctor.name === appointment.primaryPhysician
-  );
+  const doctor = Doctors.find((doctor) => doctor.name === appointment.primaryPhysician);
 
   // Parsowanie statusu dla przycisków akcji
   let statuses: string[];
@@ -97,11 +95,11 @@ export const AppointmentDetails = ({
                   <label className="text-sm font-medium text-dark-600">Lekarz</label>
                   <div className="flex items-center gap-3">
                     <Image
-                      src={doctor?.image || "/assets/images/dr-green.png"}
-                      alt="doctor"
+                      src={appointment.doctorAvatar || doctor?.image || "/assets/images/dr-green.png"}
+                      alt={appointment.primaryPhysician}
                       width={32}
                       height={32}
-                      className="rounded-full border border-dark-500"
+                      className="rounded-full border border-dark-500 object-cover"
                     />
                     <span className="text-white">Dr. {appointment.primaryPhysician}</span>
                   </div>

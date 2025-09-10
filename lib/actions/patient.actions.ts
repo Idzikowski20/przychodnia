@@ -131,3 +131,41 @@ export const getPatients = async () => {
     );
   }
 };
+
+// UPDATE PATIENT (by document id)
+export const updatePatient = async (
+  patientId: string,
+  data: Partial<{
+    name: string;
+    email: string;
+    phone: string;
+    birthDate: Date;
+    gender: string;
+    address: string;
+    occupation: string;
+    emergencyContactName: string;
+    emergencyContactNumber: string;
+    primaryPhysician: string;
+    insuranceProvider: string;
+    insurancePolicyNumber: string;
+    allergies?: string;
+    currentMedication?: string;
+    familyMedicalHistory?: string;
+    pastMedicalHistory?: string;
+    privacyConsent?: boolean;
+    treatmentConsent?: boolean;
+    disclosureConsent?: boolean;
+  }>
+) => {
+  try {
+    const updated = await databases.updateDocument(
+      DATABASE_ID!,
+      PATIENT_COLLECTION_ID!,
+      patientId,
+      data
+    );
+    return parseStringify(updated);
+  } catch (error) {
+    console.error("An error occurred while updating patient:", error);
+  }
+};

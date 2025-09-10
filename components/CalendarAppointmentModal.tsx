@@ -93,11 +93,15 @@ export const CalendarAppointmentModal = ({
                <div className="space-y-2">
                  <label className="text-sm font-medium text-white/70">Lekarz</label>
                  <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
-                     <span className="text-white text-sm font-medium">
-                       {appointment.primaryPhysician.split(' ').map(n => n[0]).join('')}
-                     </span>
-                   </div>
+                   {appointment.doctorAvatar ? (
+                     <img src={appointment.doctorAvatar} alt={appointment.primaryPhysician} className="w-10 h-10 rounded-full object-cover border border-white/20" />
+                   ) : (
+                     <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+                       <span className="text-white text-sm font-medium">
+                         {appointment.primaryPhysician.split(' ').map(n => n[0]).join('')}
+                       </span>
+                     </div>
+                   )}
                    <p className="text-white font-medium">{appointment.primaryPhysician}</p>
                  </div>
                </div>

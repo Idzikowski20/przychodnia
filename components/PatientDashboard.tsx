@@ -11,8 +11,10 @@ import {
   UserGroupIcon,
   ChatBubbleLeftRightIcon
 } from "@heroicons/react/24/outline";
-import { getAppointmentsByPatient } from "@/lib/actions/appointment.actions";
+import { getAppointmentsByPatient, updateAppointment } from "@/lib/actions/appointment.actions";
 import { formatDateTime } from "@/lib/utils";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
+import { Textarea } from "./ui/textarea";
 
 interface PatientDashboardProps {
   patient: any;
@@ -24,6 +26,9 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
   const patientName = patient?.name || "Pacjencie";
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancelReasons, setCancelReasons] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(1);
+  const pageSize = 3;
 
   // Load patient appointments
   useEffect(() => {
@@ -55,7 +60,7 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
   console.log("🔍 Wszystkie wizyty:", appointments);
   console.log("⏰ Aktualna data:", now);
   
-  // Najbliższe wizyty: tylko awaiting i confirmed, które są w przyszłości
+  // Najbliższe wizyty: tylko awaiting i confirmed/accepted, które są w przyszłości
   const upcomingAppointments = appointments.filter(apt => {
     const appointmentDate = new Date(apt.schedule);
     const isFuture = appointmentDate > now;
@@ -63,9 +68,9 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
     // Obsługa statusu jako tablicy lub stringa
     let isActive = false;
     if (Array.isArray(apt.status)) {
-      isActive = apt.status.includes('awaiting') || apt.status.includes('confirmed');
+      isActive = apt.status.includes('awaiting') || apt.status.includes('confirmed') || apt.status.includes('accepted');
     } else {
-      isActive = apt.status === 'awaiting' || apt.status === 'confirmed';
+      isActive = apt.status === 'awaiting' || apt.status === 'confirmed' || apt.status === 'accepted';
     }
     
     console.log(`📅 Wizyta ${apt.primaryPhysician}:`, {
@@ -83,6 +88,34 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
   
   console.log("✅ Najbliższe wizyty po filtrowaniu:", upcomingAppointments);
 
+  // Oblicz widoczne elementy wg paginacji (po 3)
+  const totalPages = Math.ceil(upcomingAppointments.length / pageSize) || 1;
+  const visibleAppointments = upcomingAppointments.slice(0, page * pageSize);
+
+  const handleCancelAppointment = async (apt: any) => {
+    try {
+      const reason = cancelReasons[apt.$id] || "";
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Warsaw";
+      await updateAppointment({
+        appointmentId: apt.$id,
+        userId,
+        timeZone,
+        appointment: {
+          primaryPhysician: apt.primaryPhysician,
+          schedule: new Date(apt.schedule),
+          status: ["cancelled"],
+          cancellationReason: reason,
+        },
+        type: "cancel",
+      });
+
+      // Optimistyczna aktualizacja listy
+      setAppointments(prev => prev.map(p => p.$id === apt.$id ? { ...p, status: ["cancelled"], cancellationReason: reason } : p));
+    } catch (error) {
+      console.error("Błąd podczas anulowania wizyty:", error);
+    }
+  };
+
   const menuOptions = [
     {
       id: "book-appointment",
@@ -91,12 +124,13 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
       icon: CalendarDaysIcon,
       href: `/patients/${patient?.userId || patient?.userid}/new-appointment`
     },
+    // Działające
     {
-      id: "files",
-      title: "Twoje pliki",
-      description: "Dokumenty i wyniki badań",
-      icon: DocumentTextIcon,
-      href: `/patients/${patient?.userId || patient?.userid}/files`
+      id: "settings",
+      title: "Profil",
+      description: "Dane i preferencje",
+      icon: CogIcon,
+      href: `/patients/${patient?.userId || patient?.userid}/profile`
     },
     {
       id: "history",
@@ -105,33 +139,34 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
       icon: ClockIcon,
       href: `/patients/${patient?.userId || patient?.userid}/history`
     },
+    // Wyszarzone (jeszcze nieaktywne)
     {
       id: "payments",
       title: "Płatności",
       description: "Historia i faktury",
       icon: CreditCardIcon,
-      href: `/patients/${patient?.userId || patient?.userid}/payments`
+      href: `#disabled`
+    },
+    {
+      id: "files",
+      title: "Twoje pliki",
+      description: "Dokumenty i wyniki badań",
+      icon: DocumentTextIcon,
+      href: `#disabled`
     },
     {
       id: "specialists",
       title: "Specjaliści",
       description: "Lista lekarzy i specjalizacji",
       icon: UserGroupIcon,
-      href: `/patients/${patient?.userId || patient?.userid}/specialists`
+      href: `#disabled`
     },
     {
       id: "chat",
       title: "Wiadomości",
       description: "Kontakt z personelem medycznym",
       icon: ChatBubbleLeftRightIcon,
-      href: `/patients/${patient?.userId || patient?.userid}/messages`
-    },
-    {
-      id: "settings",
-      title: "Ustawienia",
-      description: "Profil i preferencje",
-      icon: CogIcon,
-      href: `/patients/${patient?.userId || patient?.userid}/settings`
+      href: `#disabled`
     }
   ];
 
@@ -147,7 +182,7 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
       // Jeśli to tablica, weź pierwszy element lub najważniejszy
       if (status.includes('awaiting')) {
         statusValue = 'awaiting';
-      } else if (status.includes('confirmed')) {
+      } else if (status.includes('confirmed') || status.includes('accepted')) {
         statusValue = 'confirmed';
       } else if (status.includes('completed')) {
         statusValue = 'completed';
@@ -162,6 +197,8 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
       case 'awaiting':
         return { text: 'Oczekuje na potwierdzenie', className: 'bg-yellow-100 text-yellow-800' };
       case 'confirmed':
+        return { text: 'Wizyta potwierdzona', className: 'bg-green-100 text-green-800' };
+      case 'accepted':
         return { text: 'Wizyta potwierdzona', className: 'bg-green-100 text-green-800' };
       case 'completed':
         return { text: 'Zakończona', className: 'bg-gray-100 text-gray-800' };
@@ -198,7 +235,7 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
             <p className="text-gray-500">Ładowanie...</p>
           ) : upcomingAppointments.length > 0 ? (
             <div className="space-y-3">
-              {upcomingAppointments.slice(0, 3).map((appointment) => (
+              {visibleAppointments.map((appointment) => (
                 <div key={appointment.$id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -207,11 +244,59 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
                       <p className="text-sm text-gray-600">{formatDateTime(appointment.schedule).dateTime}</p>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusDisplay(appointment.status).className}`}>
-                    {getStatusDisplay(appointment.status).text}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusDisplay(appointment.status).className}`}>
+                      {getStatusDisplay(appointment.status).text}
+                    </span>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className="px-3 py-1 text-xs font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100">
+                          Odwołaj
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Odwołać wizytę?</AlertDialogTitle>
+                        </AlertDialogHeader>
+                        <div className="space-y-2">
+                          <p className="text-sm text-gray-600">Podaj powód odwołania (opcjonalnie):</p>
+                          <Textarea
+                            value={cancelReasons[appointment.$id] || ""}
+                            onChange={(e) => setCancelReasons(prev => ({ ...prev, [appointment.$id]: e.target.value }))}
+                            placeholder="Powód odwołania"
+                          />
+                        </div>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Anuluj</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleCancelAppointment(appointment)} className="bg-red-600 hover:bg-red-700">
+                            Odwołaj wizytę
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               ))}
+              {visibleAppointments.length < upcomingAppointments.length && (
+                <div className="pt-2">
+                  <button
+                    onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                    className="px-4 py-2 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 w-full"
+                  >
+                    Załaduj więcej
+                  </button>
+                </div>
+              )}
+              {page > 1 && (
+                <div className="pt-2">
+                  <button
+                    onClick={() => setPage(1)}
+                    className="px-4 py-2 text-sm font-medium rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 w-full"
+                  >
+                    Pokaż mniej
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-gray-500">Brak zaplanowanych wizyt</p>
@@ -228,18 +313,19 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
             return (
               <button
                 key={option.id}
-                onClick={() => handleMenuClick(option.href)}
-                className="group p-6 rounded-xl border border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 text-left bg-white hover:bg-gray-50"
+                onClick={() => option.href === '#disabled' ? null : handleMenuClick(option.href)}
+                disabled={option.href === '#disabled'}
+                className={`group p-6 rounded-xl border shadow-md transition-all duration-200 text-left ${option.href === '#disabled' ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed' : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-lg'}`}
               >
                 <div className="flex items-start space-x-4">
-                  <div className="p-3 rounded-lg bg-gray-100 text-gray-700 group-hover:scale-110 transition-transform duration-200">
+                  <div className={`p-3 rounded-lg ${option.href === '#disabled' ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 text-gray-700 group-hover:scale-110 transition-transform duration-200'}`}>
                     <Icon className="h-6 w-6" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-gray-700">
+                    <h3 className={`text-lg font-semibold ${option.href === '#disabled' ? 'text-gray-500' : 'text-gray-900 group-hover:text-gray-700'}`}>
                       {option.title}
                     </h3>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className={`text-sm mt-1 ${option.href === '#disabled' ? 'text-gray-400' : 'text-gray-600'}`}>
                       {option.description}
                     </p>
                   </div>

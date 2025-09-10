@@ -58,6 +58,27 @@ export const updateRoom = async ({
   };
 }) => {
   try {
+    // Jeśli przypisujemy specjalistę, usuń go z innych gabinetów
+    if (room.assignedSpecialist) {
+      const allRooms = await databases.listDocuments(
+        DATABASE_ID!,
+        ROOM_COLLECTION_ID!,
+        [Query.orderDesc("$createdAt")]
+      );
+
+      // Usuń specjalistę z innych gabinetów
+      for (const existingRoom of allRooms.documents) {
+        if (existingRoom.$id !== roomId && existingRoom.assignedSpecialist === room.assignedSpecialist) {
+          await databases.updateDocument(
+            DATABASE_ID!,
+            ROOM_COLLECTION_ID!,
+            existingRoom.$id,
+            { assignedSpecialist: null }
+          );
+        }
+      }
+    }
+
     const updatedRoom = await databases.updateDocument(
       DATABASE_ID!,
       ROOM_COLLECTION_ID!,

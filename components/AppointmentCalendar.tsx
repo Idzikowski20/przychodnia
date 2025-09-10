@@ -341,8 +341,8 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
                         return (
                           <div
                             key={idx}
-                            className={`text-xs p-1.5 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity ${
-                              isAppointmentCancelled(appointment) ? 'line-through opacity-75 brightness-75' : ''
+                            className={`text-xs p-2 rounded text-white cursor-pointer hover:opacity-80 transition-opacity ${
+                              (isAppointmentCancelled(appointment) || isAppointmentCompleted(appointment)) ? 'line-through opacity-75 brightness-75' : ''
                             }`}
                             style={{ backgroundColor: getAppointmentColor(appointment) }}
                             title={`${appointment.patient.name} - ${formatDateTime(appointment.schedule).timeOnly}${roomDisplayName ? ` - ${roomDisplayName}` : ''}`}
@@ -354,24 +354,33 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
                                 {getStatusDots(appointment)}
                               </div>
                             </div>
-                            <div className="opacity-90 truncate flex items-center gap-1">
-                              <span>{appointment.patient.name}</span>
-                              {appointment.doctorAvatar && (
-                                <div className="size-4 rounded-full overflow-hidden border border-white/30">
-                                  <img
-                                    src={appointment.doctorAvatar}
-                                    alt={appointment.primaryPhysician}
-                                    className="size-full object-cover"
-                                  />
-                                </div>
-                              )}
-                              {isAppointmentCompleted(appointment) && (
-                                <div className="size-4 rounded-full bg-green-600 flex items-center justify-center border border-white/30">
-                                  <svg className="size-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                </div>
-                              )}
+                            <div className="opacity-90 flex items-center gap-1">
+                              <span className="truncate flex-1">{appointment.patient.name}</span>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                {appointment.doctorAvatar && (
+                                  <div className="size-4 rounded-full overflow-hidden border border-white/30">
+                                    <img
+                                      src={appointment.doctorAvatar}
+                                      alt={appointment.primaryPhysician}
+                                      className="size-full object-cover"
+                                    />
+                                  </div>
+                                )}
+                                {isAppointmentCompleted(appointment) && (
+                                  <div className="size-4 rounded-full bg-green-600 flex items-center justify-center border border-white/30">
+                                    <svg className="size-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  </div>
+                                )}
+                                {isAppointmentCancelled(appointment) && (
+                                  <div className="size-4 rounded-full bg-red-600 flex items-center justify-center border border-white/30">
+                                    <svg className="size-2.5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M18.3 5.71a1 1 0 00-1.41 0L12 10.59 7.11 5.7a1 1 0 00-1.41 1.41L10.59 12l-4.9 4.89a1 1 0 101.41 1.41L12 13.41l4.89 4.9a1 1 0 001.41-1.41L13.41 12l4.9-4.89a1 1 0 000-1.4z"/>
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );

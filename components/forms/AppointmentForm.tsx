@@ -258,6 +258,7 @@ export const AppointmentForm = ({
           throw new Error("Appointment ID is required for update");
         }
 
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Warsaw";
         const appointmentToUpdate = {
           userId,
           appointmentId: appointment.$id,
@@ -268,6 +269,7 @@ export const AppointmentForm = ({
             cancellationReason: values.cancellationReason,
           },
           type,
+          timeZone,
         };
 
         const updatedAppointment = await updateAppointment(appointmentToUpdate);
