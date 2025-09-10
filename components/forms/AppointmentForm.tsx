@@ -306,8 +306,8 @@ export const AppointmentForm = ({
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 space-y-6">
         {type === "create" && (
           <section className="mb-12 space-y-4">
-            <h1 className={`text-4xl font-bold ${isAdminModal ? 'text-white' : 'text-gray-900'}`}>Nowa wizyta</h1>
-            <p className={isAdminModal ? 'text-white/70' : 'text-gray-600'}>
+            <h1 className={`text-4xl font-bold ${isAdminModal ? 'text-gray-900' : 'text-gray-900'}`}>Nowa wizyta</h1>
+            <p className={isAdminModal ? 'text-gray-900' : 'text-gray-600'}>
               Umów nową wizytę w 10 sekund.
             </p>
           </section>

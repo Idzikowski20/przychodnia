@@ -183,6 +183,7 @@ export const columns: ColumnDef<Appointment>[] = [
                     type="create"
                     title="Umów ponownie"
                     description="Umów nową wizytę dla tego pacjenta."
+                    isAdminModal={true}
                   />
                 </>
               );
@@ -199,6 +200,7 @@ export const columns: ColumnDef<Appointment>[] = [
                     type="schedule"
                     title="Potwierdź wizytę"
                     description="Proszę potwierdzić następujące szczegóły, aby potwierdzić wizytę."
+                    isAdminModal={true}
                   />
                 )}
                 {hasAccepted && (
@@ -209,6 +211,7 @@ export const columns: ColumnDef<Appointment>[] = [
                     type="plan"
                     title="Przełóż wizytę"
                     description="Proszę ustawić konkretną datę i godzinę wizyty."
+                    isAdminModal={true}
                   />
                 )}
                 {canMarkAsCompleted && (
@@ -227,6 +230,7 @@ export const columns: ColumnDef<Appointment>[] = [
                     type="cancel"
                     title="Anuluj wizytę"
                     description="Czy na pewno chcesz anulować swoją wizytę?"
+                    isAdminModal={true}
                   />
                 )}
               </>

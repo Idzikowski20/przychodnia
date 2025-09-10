@@ -91,6 +91,11 @@ export const StatusBadge = ({ status }: { status: Status | string }) => {
     statuses = ["awaiting"];
   }
   
+  // Jeśli wizyta ma status "completed", pokaż tylko ten status
+  if (statuses.includes("completed")) {
+    statuses = ["completed"];
+  }
+  
   // Jeśli mamy więcej niż jeden status, wyświetl wszystkie
   if (statuses.length > 1) {
     return (
@@ -105,9 +110,9 @@ export const StatusBadge = ({ status }: { status: Status | string }) => {
               alt="status"
               width={24}
               height={24}
-              className="h-fit w-3"
+              className="h-fit w-3 brightness-0 invert"
             />
-            <p className={clsx("text-12-semibold capitalize", getStatusColor(singleStatus))}>
+            <p className="text-12-semibold capitalize text-white">
               {getStatusDisplay(singleStatus)}
             </p>
           </div>
@@ -125,9 +130,9 @@ export const StatusBadge = ({ status }: { status: Status | string }) => {
         alt="status"
         width={24}
         height={24}
-        className="h-fit w-3"
+        className="h-fit w-3 brightness-0 invert"
       />
-      <p className={clsx("text-12-semibold capitalize", getStatusColor(singleStatus))}>
+      <p className="text-12-semibold capitalize text-white">
         {getStatusDisplay(singleStatus)}
       </p>
     </div>

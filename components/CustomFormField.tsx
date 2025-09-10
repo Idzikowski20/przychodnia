@@ -58,7 +58,7 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
       return (
         <div className={`flex rounded-md shadow-sm ${
           props.isAdminModal 
-            ? 'border border-white/20 bg-white/10' 
+            ? 'border border-gray-300 bg-gray-50 shadow-md' 
             : 'border border-gray-200 bg-white'
         }`}>
           {props.iconSrc && (
@@ -76,7 +76,7 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
               {...field}
               className={`border-0 bg-transparent focus:ring-0 ${
                 props.isAdminModal 
-                  ? 'text-white placeholder:text-white/50' 
+                  ? 'text-gray-900 placeholder:text-gray-500' 
                   : 'text-gray-900 placeholder:text-gray-500'
               }`}
             />
@@ -91,7 +91,7 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
             {...field}
             className={`shadow-sm focus:ring-0 ${
               props.isAdminModal 
-                ? 'border border-white/20 bg-white/10 text-white placeholder:text-white/50 focus:border-white/30' 
+                ? 'border border-gray-300 bg-gray-50 text-gray-900 placeholder:text-gray-500 focus:border-gray-400 shadow-md' 
                 : 'border border-gray-200 bg-white text-gray-900 placeholder:text-gray-500 focus:border-gray-300'
             }`}
             disabled={props.disabled}
@@ -131,7 +131,7 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
       return (
         <div className={`flex rounded-md shadow-sm ${
           props.isAdminModal 
-            ? 'border border-white/20 bg-white/10' 
+            ? 'border border-gray-300 bg-gray-50 shadow-md' 
             : 'border border-gray-200 bg-white'
         }`}>
           <Image
@@ -193,7 +193,7 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
               }}
               className={`border-0 bg-transparent focus:ring-0 w-full ${
                 props.isAdminModal 
-                  ? 'text-white placeholder:text-white/50' 
+                  ? 'text-gray-900 placeholder:text-gray-500' 
                   : 'text-gray-900 placeholder:text-gray-500'
               }`}
             />
@@ -215,7 +215,7 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
             <FormControl>
               <SelectTrigger className={`shadow-sm focus:ring-0 ${
                 props.isAdminModal 
-                  ? 'border border-white/20 bg-white/10 text-white focus:border-white/30' 
+                  ? 'border border-gray-300 bg-gray-50 text-gray-900 focus:border-gray-400 shadow-md' 
                   : 'border border-gray-200 bg-white text-gray-900 focus:border-gray-300'
               }`}>
                 <SelectValue placeholder={props.placeholder} />
@@ -223,7 +223,7 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
             </FormControl>
             <SelectContent className={`shadow-lg ${
               props.isAdminModal 
-                ? 'bg-white/10 border border-white/20' 
+                ? 'bg-gray-50 border border-gray-300 shadow-md' 
                 : 'bg-white border border-gray-200'
             }`}>
               {props.children}
@@ -249,7 +249,7 @@ const CustomFormField = (props: CustomProps) => {
         <FormItem className="flex-1">
           {props.fieldType !== FormFieldType.CHECKBOX && label && (
             <FormLabel className={`font-medium ${
-              props.isAdminModal ? 'text-white' : 'text-gray-900'
+              props.isAdminModal ? 'text-gray-900' : 'text-gray-900'
             }`}>{label}</FormLabel>
           )}
           <RenderInput field={field} props={props} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,8 @@ export const AppointmentModal = ({
   type,
   title,
   description,
+  isAdminModal = false,
+  trigger,
 }: {
   patientId: string;
   userId: string;
@@ -31,20 +34,24 @@ export const AppointmentModal = ({
   type: "create" | "schedule" | "cancel" | "plan";
   title: string;
   description: string;
+  isAdminModal?: boolean;
+  trigger?: React.ReactNode;
 }) => {
   const [open, setOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          className={`capitalize ${(type === "schedule" || type === "plan" || type === "create") && "text-green-500"} ${type === "cancel" && "text-red-500"}`}
-        >
-          {type === "schedule" ? "potwierdź" : 
-           type === "plan" ? "przełóż" : 
-           type === "create" ? "umów ponownie" : "anuluj"}
-        </Button>
+        {trigger || (
+          <Button
+            variant="ghost"
+            className={`capitalize ${(type === "schedule" || type === "plan" || type === "create") && "text-green-500"} ${type === "cancel" && "text-red-500"}`}
+          >
+            {type === "schedule" ? "potwierdź" : 
+             type === "plan" ? "przełóż" : 
+             type === "create" ? "umów ponownie" : "anuluj"}
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="shad-dialog sm:max-w-md">
         <DialogHeader className="mb-4 space-y-3">
@@ -62,6 +69,7 @@ export const AppointmentModal = ({
           type={type}
           appointment={appointment}
           setOpen={setOpen}
+          isAdminModal={isAdminModal}
         />
       </DialogContent>
     </Dialog>

@@ -76,51 +76,51 @@ export const AppointmentDetails = ({
           <div className="space-y-8">
             {/* Informacje o wizycie */}
             <section className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-dark-500 pb-2">
+              <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-300 pb-2">
                 Informacje o wizycie
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Status</label>
+                  <label className="text-sm font-medium text-gray-600">Status</label>
                   <StatusBadge status={appointment.status} />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Data i godzina</label>
-                  <p className="text-white">{formatDateTime(appointment.schedule).dateTime}</p>
+                  <label className="text-sm font-medium text-gray-600">Data i godzina</label>
+                  <p className="text-gray-900">{formatDateTime(appointment.schedule).dateTime}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Lekarz</label>
+                  <label className="text-sm font-medium text-gray-600">Lekarz</label>
                   <div className="flex items-center gap-3">
                     <Image
                       src={appointment.doctorAvatar || doctor?.image || "/assets/images/dr-green.png"}
                       alt={appointment.primaryPhysician}
                       width={32}
                       height={32}
-                      className="rounded-full border border-dark-500 object-cover"
+                      className="rounded-full border border-gray-300 object-cover"
                     />
-                    <span className="text-white">Dr. {appointment.primaryPhysician}</span>
+                    <span className="text-gray-900">Dr. {appointment.primaryPhysician}</span>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Powód wizyty</label>
-                  <p className="text-white bg-dark-400 p-3 rounded-md">{appointment.reason}</p>
+                  <label className="text-sm font-medium text-gray-600">Powód wizyty</label>
+                  <p className="text-gray-900 bg-gray-100 p-3 rounded-md">{appointment.reason}</p>
                 </div>
 
                 {appointment.note && (
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-medium text-dark-600">Notatki</label>
-                    <p className="text-white bg-dark-400 p-3 rounded-md">{appointment.note}</p>
+                    <label className="text-sm font-medium text-gray-600">Notatki</label>
+                    <p className="text-gray-900 bg-gray-100 p-3 rounded-md">{appointment.note}</p>
                   </div>
                 )}
 
                 {appointment.cancellationReason && (
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-medium text-dark-600">Powód anulowania</label>
-                    <p className="text-red-400 bg-red-900/20 p-3 rounded-md">{appointment.cancellationReason}</p>
+                    <label className="text-sm font-medium text-gray-600">Powód anulowania</label>
+                    <p className="text-red-600 bg-red-50 p-3 rounded-md">{appointment.cancellationReason}</p>
                   </div>
                 )}
               </div>
@@ -128,34 +128,34 @@ export const AppointmentDetails = ({
 
             {/* Informacje o pacjencie */}
             <section className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-dark-500 pb-2">
+              <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-300 pb-2">
                 Dane osobowe pacjenta
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Imię i nazwisko</label>
-                  <p className="text-white">{appointment.patient.name}</p>
+                  <label className="text-sm font-medium text-gray-600">Imię i nazwisko</label>
+                  <p className="text-gray-900">{appointment.patient.name}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Email</label>
-                  <p className="text-white">{appointment.patient.email}</p>
+                  <label className="text-sm font-medium text-gray-600">Email</label>
+                  <p className="text-gray-900">{appointment.patient.email}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Numer telefonu</label>
-                  <p className="text-white">{appointment.patient.phone}</p>
+                  <label className="text-sm font-medium text-gray-600">Numer telefonu</label>
+                  <p className="text-gray-900">{appointment.patient.phone}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Data urodzenia</label>
-                  <p className="text-white">{formatDateTime(appointment.patient.birthDate).dateOnly}</p>
+                  <label className="text-sm font-medium text-gray-600">Data urodzenia</label>
+                  <p className="text-gray-900">{formatDateTime(appointment.patient.birthDate).dateOnly}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Płeć</label>
-                  <p className="text-white">
+                  <label className="text-sm font-medium text-gray-600">Płeć</label>
+                  <p className="text-gray-900">
                     {appointment.patient.gender === "male" ? "Mężczyzna" :
                      appointment.patient.gender === "female" ? "Kobieta" :
                      appointment.patient.gender === "others" ? "Inna" : appointment.patient.gender}
@@ -163,82 +163,82 @@ export const AppointmentDetails = ({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Adres</label>
-                  <p className="text-white">{appointment.patient.address}</p>
+                  <label className="text-sm font-medium text-gray-600">Adres</label>
+                  <p className="text-gray-900">{appointment.patient.address}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Zawód</label>
-                  <p className="text-white">{appointment.patient.occupation || "Nie podano"}</p>
+                  <label className="text-sm font-medium text-gray-600">Zawód</label>
+                  <p className="text-gray-900">{appointment.patient.occupation || "Nie podano"}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Lekarz prowadzący</label>
-                  <p className="text-white">{appointment.patient.primaryPhysician}</p>
+                  <label className="text-sm font-medium text-gray-600">Lekarz prowadzący</label>
+                  <p className="text-gray-900">{appointment.patient.primaryPhysician}</p>
                 </div>
               </div>
             </section>
 
             {/* Kontakt awaryjny */}
             <section className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-dark-500 pb-2">
+              <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-300 pb-2">
                 Kontakt awaryjny
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Imię i nazwisko</label>
-                  <p className="text-white">{appointment.patient.emergencyContactName}</p>
+                  <label className="text-sm font-medium text-gray-600">Imię i nazwisko</label>
+                  <p className="text-gray-900">{appointment.patient.emergencyContactName}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Numer telefonu</label>
-                  <p className="text-white">{appointment.patient.emergencyContactNumber}</p>
+                  <label className="text-sm font-medium text-gray-600">Numer telefonu</label>
+                  <p className="text-gray-900">{appointment.patient.emergencyContactNumber}</p>
                 </div>
               </div>
             </section>
 
             {/* Informacje medyczne */}
             <section className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-dark-500 pb-2">
+              <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-300 pb-2">
                 Informacje medyczne
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Ubezpieczyciel</label>
-                  <p className="text-white">{appointment.patient.insuranceProvider || "Nie podano"}</p>
+                  <label className="text-sm font-medium text-gray-600">Ubezpieczyciel</label>
+                  <p className="text-gray-900">{appointment.patient.insuranceProvider || "Nie podano"}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-dark-600">Numer polisy</label>
-                  <p className="text-white">{appointment.patient.insurancePolicyNumber}</p>
+                  <label className="text-sm font-medium text-gray-600">Numer polisy</label>
+                  <p className="text-gray-900">{appointment.patient.insurancePolicyNumber}</p>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-dark-600">Alergie</label>
-                  <p className="text-white bg-dark-400 p-3 rounded-md">
+                  <label className="text-sm font-medium text-gray-600">Alergie</label>
+                  <p className="text-gray-900 bg-gray-100 p-3 rounded-md">
                     {appointment.patient.allergies || "Brak alergii"}
                   </p>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-dark-600">Aktualnie przyjmowane leki</label>
-                  <p className="text-white bg-dark-400 p-3 rounded-md">
+                  <label className="text-sm font-medium text-gray-600">Aktualnie przyjmowane leki</label>
+                  <p className="text-gray-900 bg-gray-100 p-3 rounded-md">
                     {appointment.patient.currentMedication || "Brak leków"}
                   </p>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-dark-600">Historia medyczna rodziny</label>
-                  <p className="text-white bg-dark-400 p-3 rounded-md">
+                  <label className="text-sm font-medium text-gray-600">Historia medyczna rodziny</label>
+                  <p className="text-gray-900 bg-gray-100 p-3 rounded-md">
                     {appointment.patient.familyMedicalHistory || "Brak informacji"}
                   </p>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-dark-600">Przebyte choroby</label>
-                  <p className="text-white bg-dark-400 p-3 rounded-md">
+                  <label className="text-sm font-medium text-gray-600">Przebyte choroby</label>
+                  <p className="text-gray-900 bg-gray-100 p-3 rounded-md">
                     {appointment.patient.pastMedicalHistory || "Brak informacji"}
                   </p>
                 </div>
@@ -247,21 +247,21 @@ export const AppointmentDetails = ({
 
             {/* Zgody i prywatność */}
             <section className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-dark-500 pb-2">
+              <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-300 pb-2">
                 Zgody i prywatność
               </h3>
               
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className={`w-3 h-3 rounded-full ${appointment.patient.privacyConsent ? "bg-green-500" : "bg-red-500"}`} />
-                  <span className="text-white">Zgoda na politykę prywatności</span>
+                  <span className="text-gray-900">Zgoda na politykę prywatności</span>
                 </div>
               </div>
             </section>
 
             {/* Akcje */}
-            <section className="space-y-4 pt-6 border-t border-dark-500">
-              <h3 className="text-lg font-semibold text-white">Akcje</h3>
+            <section className="space-y-4 pt-6 border-t border-gray-300">
+              <h3 className="text-lg font-semibold text-gray-900">Akcje</h3>
               
               <div className="flex gap-3 flex-wrap">
                 {isCompleted ? (
@@ -270,7 +270,7 @@ export const AppointmentDetails = ({
                     <AppointmentNotesModal appointment={appointment} />
                     <button
                       onClick={() => handleAction("create")}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-gray-900 rounded-lg transition-colors font-medium"
                     >
                       Umów ponownie
                     </button>
@@ -291,7 +291,7 @@ export const AppointmentDetails = ({
                     {hasAwaiting && (
                       <button
                         onClick={() => handleAction("schedule")}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-gray-900 rounded-lg transition-colors font-medium"
                       >
                         Potwierdź wizytę
                       </button>
@@ -300,7 +300,7 @@ export const AppointmentDetails = ({
                     {hasAccepted && (
                       <button
                         onClick={() => handleAction("plan")}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-gray-900 rounded-lg transition-colors font-medium"
                       >
                         Przełóż wizytę
                       </button>
@@ -309,7 +309,7 @@ export const AppointmentDetails = ({
                     {!hasCancelled && (
                       <button
                         onClick={() => handleAction("cancel")}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-gray-900 rounded-lg transition-colors font-medium"
                       >
                         Anuluj wizytę
                       </button>
