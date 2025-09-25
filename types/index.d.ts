@@ -33,6 +33,9 @@ declare interface RegisterUserParams extends CreateUserParams {
   familyMedicalHistory: string | undefined;
   pastMedicalHistory: string | undefined;
   privacyConsent: boolean;
+  identificationNumber: string | undefined;
+  identificationDocumentId: string | undefined;
+  identificationDocumentUrl: string | undefined;
 }
 
 declare type CreateAppointmentParams = {
@@ -56,6 +59,7 @@ declare type UpdateAppointmentParams = {
   type?: string;
   note?: string;
   adminNotes?: string;
+  skipSMS?: boolean;
 };
 
 declare type CreateDoctorParams = {
@@ -74,6 +78,8 @@ declare type CreateDoctorParams = {
   consultationFee: string;
   currency: string;
   notes?: string;
+  roomName?: string;
+  roomColor?: string;
 };
 
 declare type UpdateDoctorParams = {

@@ -2,9 +2,11 @@
 
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import Image from "next/image";
+import { useState } from "react";
 
 import { Doctors } from "@/constants";
 import { formatDateTime } from "@/lib/utils";
+import BookingModal from "./BookingModal";
 import { Patient } from "@/types/appwrite.types";
 
 type PatientDetailsModalProps = {
@@ -18,10 +20,20 @@ export const PatientDetailsModal = ({
   isOpen, 
   onClose 
 }: PatientDetailsModalProps) => {
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+
   if (!isOpen) return null;
 
   // Znajdź lekarza po nazwisku
   const doctor = Doctors.find(d => d.name === patient.primaryPhysician);
+
+  const handleBookingClick = () => {
+    setIsBookingModalOpen(true);
+  };
+
+  const handleBookingModalClose = () => {
+    setIsBookingModalOpen(false);
+  };
 
   return (
     <>
@@ -201,9 +213,38 @@ export const PatientDetailsModal = ({
                 </div>
               </div>
             </section>
+
+            {/* Akcje */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold text-white border-b border-white/10 pb-2">
+                Akcje
+              </h3>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={handleBookingClick}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                >
+                  Umów ponownie
+                </button>
+              </div>
+            </section>
           </div>
         </div>
       </div>
+
+      {/* Modal nowego systemu rezerwacji */}
+      <BookingModal
+        isOpen={isBookingModalOpen}
+        onClose={handleBookingModalClose}
+        userId={patient.userid || patient.userId}
+        patientId={patient.$id}
+        patientName={patient.name}
+        onBookingComplete={(appointmentId) => {
+          console.log("Wizyta umówiona:", appointmentId);
+          handleBookingModalClose();
+        }}
+      />
     </>
   );
 };

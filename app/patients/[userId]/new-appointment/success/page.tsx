@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { Doctors } from "@/constants";
 import { getAppointment } from "@/lib/actions/appointment.actions";
+import { getDoctors } from "@/lib/actions/doctor.actions";
 import { formatDateTime } from "@/lib/utils";
 
 const RequestSuccess = async ({
@@ -12,9 +12,10 @@ const RequestSuccess = async ({
 }: SearchParamProps) => {
   const appointmentId = (searchParams?.appointmentId as string) || "";
   const appointment = await getAppointment(appointmentId);
+  const doctors = await getDoctors();
 
-  const doctor = Doctors.find(
-    (doctor) => doctor.name === appointment.primaryPhysician
+  const doctor = doctors.find(
+    (doctor: any) => doctor.name === appointment.primaryPhysician
   );
 
   return (
@@ -61,15 +62,15 @@ const RequestSuccess = async ({
               
               <div className="flex items-center gap-3">
                 <Image
-                  src={doctor?.image!}
+                  src={doctor?.avatar || "/assets/images/sylwia.jpg"}
                   alt="doctor"
                   width={40}
                   height={40}
                   className="doctor-avatar border border-gray-200"
                 />
                 <div>
-                  <p className="font-medium text-gray-900">Dr. {doctor?.name}</p>
-                  <p className="text-sm text-gray-500">{doctor?.specialization}</p>
+                  <p className="font-medium text-gray-900">Dr. {doctor?.name || appointment.primaryPhysician}</p>
+                  <p className="text-sm text-gray-500">{doctor?.specialization || "Specjalista"}</p>
                 </div>
               </div>
               

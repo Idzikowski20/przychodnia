@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Plus_Jakarta_Sans as FontSans } from "next/font/google";
+// Używamy lokalnej czcionki Sofia Pro zdefiniowanej w globals.css
 import { ThemeProvider } from "next-themes";
+import { ToastProvider } from "@/components/ui/toast";
 
 import { cn } from "@/lib/utils";
 
-const fontSans = FontSans({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-sans",
-});
+const fontSans = { variable: "--font-sans" } as const;
 
 export const metadata: Metadata = {
   title: "CarePulse",
@@ -26,15 +23,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={cn(
-          "min-h-screen bg-white font-sans antialiased",
-          fontSans.variable
-        )}
-      >
-        <ThemeProvider attribute="class" defaultTheme="light">
-          {children}
+    <html lang="pl" suppressHydrationWarning>
+      <body className={cn("min-h-screen font-sans antialiased bg-background", fontSans.variable)}>
+        <ThemeProvider 
+          attribute="class" 
+          defaultTheme="light" 
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          <ToastProvider>
+            {children}
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -16,6 +16,7 @@ import { parseStringify } from "../utils";
 // CREATE DOCTOR
 export const createDoctor = async (doctor: CreateDoctorParams) => {
   try {
+    console.log("Creating doctor with data:", doctor);
     const newDoctor = await databases.createDocument(
       DATABASE_ID!,
       DOCTOR_COLLECTION_ID!,
@@ -25,8 +26,9 @@ export const createDoctor = async (doctor: CreateDoctorParams) => {
 
     revalidatePath("/admin");
     return parseStringify(newDoctor);
-  } catch (error) {
+  } catch (error: any) {
     console.error("An error occurred while creating a new doctor:", error);
+    throw error; // Rzuć błąd dalej, żeby frontend mógł go obsłużyć
   }
 };
 

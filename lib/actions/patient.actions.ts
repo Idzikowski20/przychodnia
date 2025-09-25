@@ -71,12 +71,15 @@ export const registerPatient = async (patient: RegisterUserParams) => {
         emergencyContactNumber: patient.emergencyContactNumber,
         primaryPhysician: patient.primaryPhysician,
         insuranceProvider: patient.insuranceProvider,
-        insurancePolicyNumber: patient.insurancePolicyNumber,
+        insurancepolicyNumber: patient.insurancePolicyNumber,
         allergies: patient.allergies,
         currentMedication: patient.currentMedication,
         familyMedicalHistory: patient.familyMedicalHistory,
         pastMedicalHistory: patient.pastMedicalHistory,
         privacyConsent: patient.privacyConsent,
+        identificationNumber: patient.identificationNumber || "",
+        identificationDocumentId: patient.identificationDocumentId || "",
+        identificationDocumentUrl: patient.identificationDocumentUrl || "",
       }
     );
 
@@ -167,5 +170,20 @@ export const updatePatient = async (
     return parseStringify(updated);
   } catch (error) {
     console.error("An error occurred while updating patient:", error);
+  }
+};
+
+// DELETE PATIENT
+export const deletePatient = async (patientId: string) => {
+  try {
+    const deleted = await databases.deleteDocument(
+      DATABASE_ID!,
+      PATIENT_COLLECTION_ID!,
+      patientId
+    );
+    return parseStringify(deleted);
+  } catch (error) {
+    console.error("An error occurred while deleting patient:", error);
+    throw error;
   }
 };

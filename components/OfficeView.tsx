@@ -2,6 +2,7 @@
 
 import { PencilIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useState, useEffect, useRef } from "react";
+import { useToast } from "@/components/ui/toast";
 
 import { getDoctors } from "@/lib/actions/doctor.actions";
 import { getRooms, updateRoom, createRoom, removeDuplicateRooms } from "@/lib/actions/room.actions";
@@ -21,6 +22,7 @@ type OfficeViewProps = {
 };
 
 export const OfficeView = ({ appointments = [], onRoomChange }: OfficeViewProps) => {
+  const { toast } = useToast();
   const [rooms, setRooms] = useState<RoomWithStatus[]>([]);
   const [editingRoom, setEditingRoom] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -219,7 +221,7 @@ export const OfficeView = ({ appointments = [], onRoomChange }: OfficeViewProps)
         // Odśwież listę gabinetów
         const updatedRooms = await getRooms();
         setRooms(updatedRooms.map((room: any) => ({ ...room, isOccupied: false })));
-        alert(`Usunięto ${result.removedCount} duplikatów gabinetów!`);
+        toast({ variant: "success", title: "Usunięto duplikaty", description: `${result.removedCount} rekordów` });
       }
     } catch (error) {
       console.error("Błąd podczas usuwania duplikatów:", error);

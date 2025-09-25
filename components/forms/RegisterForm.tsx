@@ -26,6 +26,7 @@ import SubmitButton from "../SubmitButton";
 const RegisterForm = ({ user, isAdminModal = false }: { user: User; isAdminModal?: boolean }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
 
   useEffect(() => {
@@ -48,6 +49,7 @@ const RegisterForm = ({ user, isAdminModal = false }: { user: User; isAdminModal
       name: user.name,
       email: user.email,
       phone: user.phone,
+      gender: "Mężczyzna", // Domyślna wartość w języku polskim
     },
   });
 
@@ -55,13 +57,20 @@ const RegisterForm = ({ user, isAdminModal = false }: { user: User; isAdminModal
     setIsLoading(true);
 
     try {
+      // Mapowanie polskich wartości płci na angielskie
+      const genderMapping: { [key: string]: Gender } = {
+        "Mężczyzna": "male",
+        "Kobieta": "female", 
+        "Inny": "others"
+      };
+
       const patient = {
         userId: user.$id,
         name: values.name,
         email: values.email,
         phone: values.phone,
         birthDate: new Date(values.birthDate),
-        gender: values.gender,
+        gender: genderMapping[values.gender] || "male",
         address: values.address,
         occupation: values.occupation,
         emergencyContactName: values.emergencyContactName,
@@ -74,11 +83,17 @@ const RegisterForm = ({ user, isAdminModal = false }: { user: User; isAdminModal
         familyMedicalHistory: values.familyMedicalHistory,
         pastMedicalHistory: values.pastMedicalHistory,
         privacyConsent: values.privacyConsent,
+        identificationNumber: "",
+        identificationDocumentId: "",
+        identificationDocumentUrl: "",
       };
 
       const newPatient = await registerPatient(patient);
 
       if (newPatient) {
+        // Zapisz userId w localStorage aby pamiętać że użytkownik jest zalogowany
+        localStorage.setItem("loggedInUserId", user.$id);
+        setIsNavigating(true);
         router.push(`/patients/${user.$id}/new-appointment`);
       }
     } catch (error) {
@@ -359,7 +374,9 @@ const RegisterForm = ({ user, isAdminModal = false }: { user: User; isAdminModal
           />
         </section>
 
-        <SubmitButton isLoading={isLoading}>Wyślij i kontynuuj</SubmitButton>
+        <SubmitButton isLoading={isLoading || isNavigating}>
+          {isNavigating ? "Przekierowywanie..." : "Wyślij i kontynuuj"}
+        </SubmitButton>
       </form>
     </Form>
   );

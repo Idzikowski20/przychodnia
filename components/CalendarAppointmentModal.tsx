@@ -148,35 +148,35 @@ export const CalendarAppointmentModal = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-white/70">Imię i nazwisko</label>
-                  <p className="text-white">{appointment.patient.name}</p>
+                  <p className="text-white">{appointment.patient?.name || 'Brak danych'}</p>
                 </div>
                 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-white/70">Email</label>
-                  <p className="text-white">{appointment.patient.email}</p>
+                  <p className="text-white">{appointment.patient?.email || 'Brak danych'}</p>
                 </div>
                 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-white/70">Telefon</label>
-                  <p className="text-white">{appointment.patient.phone}</p>
+                  <p className="text-white">{appointment.patient?.phone || 'Brak danych'}</p>
                 </div>
                 
                  <div className="space-y-2">
                    <label className="text-sm font-medium text-white/70">Data urodzenia</label>
-                   <p className="text-white">{formatDateTime(appointment.patient.birthDate).dateOnly}</p>
+                   <p className="text-white">{appointment.patient?.birthDate ? formatDateTime(appointment.patient.birthDate).dateOnly : 'Brak danych'}</p>
                  </div>
                 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-white/70">Płeć</label>
                   <p className="text-white">
-                    {appointment.patient.gender === "male" ? "Mężczyzna" :
-                     appointment.patient.gender === "female" ? "Kobieta" : "Inna"}
+                    {appointment.patient?.gender === "male" ? "Mężczyzna" :
+                     appointment.patient?.gender === "female" ? "Kobieta" : "Inna"}
                   </p>
                 </div>
                 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-white/70">Adres</label>
-                  <p className="text-white">{appointment.patient.address}</p>
+                  <p className="text-white">{appointment.patient?.address || 'Brak danych'}</p>
                 </div>
               </div>
             </div>
@@ -233,7 +233,7 @@ export const CalendarAppointmentModal = ({
       {/* Modal akcji - wyższy z-index */}
       <ControlledAppointmentModal
         userId={appointment.userId}
-        patientId={appointment.patient.$id}
+        patientId={appointment.patient?.$id || appointment.userId}
         type={actionType}
         appointment={appointment}
         title={

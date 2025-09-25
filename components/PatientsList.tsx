@@ -9,6 +9,7 @@ import { Patient } from "@/types/appwrite.types";
 import { ControlledAppointmentModal } from "./ControlledAppointmentModal";
 import { PatientDetailsModal } from "./PatientDetailsModal";
 import { PatientHistoryModal } from "./PatientHistoryModal";
+import BookingModal from "./BookingModal";
 
 export const PatientsList = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -17,6 +18,7 @@ export const PatientsList = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -54,6 +56,11 @@ export const PatientsList = () => {
     setIsAppointmentModalOpen(true);
   };
 
+  const handleBookingClick = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setIsBookingModalOpen(true);
+  };
+
   const handleDetailsModalClose = () => {
     setIsDetailsModalOpen(false);
     setSelectedPatient(null);
@@ -64,7 +71,15 @@ export const PatientsList = () => {
     setSelectedPatient(null);
   };
 
-  // usunięte: nieużywana funkcja handleAppointmentModalClose
+  const handleAppointmentModalClose = () => {
+    setIsAppointmentModalOpen(false);
+    setSelectedPatient(null);
+  };
+
+  const handleBookingModalClose = () => {
+    setIsBookingModalOpen(false);
+    setSelectedPatient(null);
+  };
 
   // Filtered patients based on search and filters
   const filteredPatients = useMemo(() => {
@@ -301,6 +316,12 @@ export const PatientsList = () => {
                         >
                           Umów
                         </button>
+                        <button
+                          onClick={() => handleBookingClick(patient)}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm"
+                        >
+                          Umów ponownie
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -389,6 +410,12 @@ export const PatientsList = () => {
                     >
                       Umów
                     </button>
+                    <button
+                      onClick={() => handleBookingClick(patient)}
+                      className="flex-1 px-3 py-2 bg-blue-800 hover:bg-blue-800 text-white rounded-lg transition-colors font-medium text-sm"
+                    >
+                      Umów ponownie
+                    </button>
                   </div>
                 </div>
               </div>
@@ -425,6 +452,21 @@ export const PatientsList = () => {
           description="Umów nową wizytę dla tego pacjenta."
           open={isAppointmentModalOpen}
           onOpenChange={setIsAppointmentModalOpen}
+        />
+      )}
+
+      {/* Modal nowego systemu rezerwacji */}
+      {selectedPatient && (
+        <BookingModal
+          isOpen={isBookingModalOpen}
+          onClose={handleBookingModalClose}
+          userId={selectedPatient.userid || selectedPatient.userId}
+          patientId={selectedPatient.$id}
+          patientName={selectedPatient.name}
+          onBookingComplete={(appointmentId) => {
+            console.log("Wizyta umówiona:", appointmentId);
+            // Można dodać odświeżenie listy pacjentów
+          }}
         />
       )}
     </>

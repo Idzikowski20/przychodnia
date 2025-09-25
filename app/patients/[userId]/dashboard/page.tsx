@@ -1,10 +1,16 @@
 import Image from "next/image";
+import { redirect } from "next/navigation";
 
 import { PatientDashboard } from "@/components/PatientDashboard";
 import { getPatient } from "@/lib/actions/patient.actions";
 
 const Dashboard = async ({ params: { userId } }: SearchParamProps) => {
   const patient = await getPatient(userId);
+
+  // Jeśli pacjent nie istnieje, przekieruj do rejestracji
+  if (!patient) {
+    redirect(`/patients/${userId}/register`);
+  }
 
   return (
     <div className="min-h-screen bg-white">

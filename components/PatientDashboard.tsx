@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/toast";
 import { 
   CalendarDaysIcon, 
   DocumentTextIcon, 
@@ -15,6 +16,7 @@ import { getAppointmentsByPatient, updateAppointment } from "@/lib/actions/appoi
 import { formatDateTime } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { Textarea } from "./ui/textarea";
+import BookingModal from "./BookingModal";
 
 interface PatientDashboardProps {
   patient: any;
@@ -23,11 +25,14 @@ interface PatientDashboardProps {
 
 export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => {
   const router = useRouter();
+  const { toast } = useToast();
   const patientName = patient?.name || "Pacjencie";
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelReasons, setCancelReasons] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const pageSize = 3;
 
   // Load patient appointments
@@ -56,10 +61,6 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
   // Filter upcoming appointments only
   const now = new Date();
   
-  // Debug: log all appointments
-  console.log("🔍 Wszystkie wizyty:", appointments);
-  console.log("⏰ Aktualna data:", now);
-  
   // Najbliższe wizyty: tylko awaiting i confirmed/accepted, które są w przyszłości
   const upcomingAppointments = appointments.filter(apt => {
     const appointmentDate = new Date(apt.schedule);
@@ -67,26 +68,18 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
     
     // Obsługa statusu jako tablicy lub stringa
     let isActive = false;
+    let isCancelled = false;
+    
     if (Array.isArray(apt.status)) {
-      isActive = apt.status.includes('awaiting') || apt.status.includes('confirmed') || apt.status.includes('accepted');
+      isActive = apt.status.includes('awaiting') || apt.status.includes('confirmed') || apt.status.includes('accepted') || apt.status.includes('pending');
+      isCancelled = apt.status.includes('cancelled');
     } else {
-      isActive = apt.status === 'awaiting' || apt.status === 'confirmed' || apt.status === 'accepted';
+      isActive = apt.status === 'awaiting' || apt.status === 'confirmed' || apt.status === 'accepted' || apt.status === 'pending';
+      isCancelled = apt.status === 'cancelled';
     }
     
-    console.log(`📅 Wizyta ${apt.primaryPhysician}:`, {
-      date: apt.schedule,
-      parsedDate: appointmentDate,
-      status: apt.status,
-      statusType: Array.isArray(apt.status) ? 'array' : 'string',
-      isFuture,
-      isActive,
-      willShow: isFuture && isActive
-    });
-    
-    return isFuture && isActive;
+    return isFuture && isActive && !isCancelled;
   });
-  
-  console.log("✅ Najbliższe wizyty po filtrowaniu:", upcomingAppointments);
 
   // Oblicz widoczne elementy wg paginacji (po 3)
   const totalPages = Math.ceil(upcomingAppointments.length / pageSize) || 1;
@@ -96,23 +89,25 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
     try {
       const reason = cancelReasons[apt.$id] || "";
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Warsaw";
+      
       await updateAppointment({
         appointmentId: apt.$id,
         userId,
         timeZone,
-        appointment: {
-          primaryPhysician: apt.primaryPhysician,
-          schedule: new Date(apt.schedule),
-          status: ["cancelled"],
-          cancellationReason: reason,
-        },
         type: "cancel",
+        skipSMS: true, // Pacjent anuluje sam, nie wysyłaj SMS
       });
 
       // Optimistyczna aktualizacja listy
       setAppointments(prev => prev.map(p => p.$id === apt.$id ? { ...p, status: ["cancelled"], cancellationReason: reason } : p));
+      
+      // Odśwież dostępność w systemie rezerwacji
+      if ((window as any).refreshBookingAvailability) {
+        (window as any).refreshBookingAvailability();
+      }
     } catch (error) {
       console.error("Błąd podczas anulowania wizyty:", error);
+      toast({ variant: "destructive", title: "Błąd", description: "Nie udało się anulować wizyty" });
     }
   };
 
@@ -122,7 +117,14 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
       title: "Umów wizytę",
       description: "Zarezerwuj termin wizyty",
       icon: CalendarDaysIcon,
-      href: `/patients/${patient?.userId || patient?.userid}/new-appointment`
+      href: `/patients/${userId}/new-appointment`
+    },
+    {
+      id: "book-appointment-new",
+      title: "Umów ponownie",
+      description: "Nowy system rezerwacji",
+      icon: CalendarDaysIcon,
+      action: () => setIsBookingModalOpen(true)
     },
     // Działające
     {
@@ -130,14 +132,14 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
       title: "Profil",
       description: "Dane i preferencje",
       icon: CogIcon,
-      href: `/patients/${patient?.userId || patient?.userid}/profile`
+      href: `/patients/${userId}/profile`
     },
     {
       id: "history",
       title: "Historia wizyt",
       description: "Przeglądaj poprzednie wizyty",
       icon: ClockIcon,
-      href: `/patients/${patient?.userId || patient?.userid}/history`
+      href: `/patients/${userId}/history`
     },
     // Wyszarzone (jeszcze nieaktywne)
     {
@@ -170,8 +172,24 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
     }
   ];
 
-  const handleMenuClick = (href: string) => {
-    router.push(href);
+  const handleMenuClick = async (href: string) => {
+    setIsNavigating(true);
+    try {
+      await router.push(href);
+    } catch (error) {
+      console.error("Navigation error:", error);
+    } finally {
+      // Reset loading state after a short delay to show the loader
+      setTimeout(() => setIsNavigating(false), 1000);
+    }
+  };
+
+  const handleMenuAction = (option: any) => {
+    if (option.action) {
+      option.action();
+    } else if (option.href && option.href !== '#disabled') {
+      handleMenuClick(option.href);
+    }
   };
 
   // Format status for display
@@ -180,7 +198,7 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
     let statusValue = status;
     if (Array.isArray(status)) {
       // Jeśli to tablica, weź pierwszy element lub najważniejszy
-      if (status.includes('awaiting')) {
+      if (status.includes('awaiting') || status.includes('pending')) {
         statusValue = 'awaiting';
       } else if (status.includes('confirmed') || status.includes('accepted')) {
         statusValue = 'confirmed';
@@ -195,6 +213,7 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
     
     switch (statusValue) {
       case 'awaiting':
+      case 'pending':
         return { text: 'Oczekuje na potwierdzenie', className: 'bg-yellow-100 text-yellow-800' };
       case 'confirmed':
         return { text: 'Wizyta potwierdzona', className: 'bg-green-100 text-green-800' };
@@ -313,20 +332,24 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
             return (
               <button
                 key={option.id}
-                onClick={() => option.href === '#disabled' ? null : handleMenuClick(option.href)}
-                disabled={option.href === '#disabled'}
-                className={`group p-6 rounded-xl border shadow-md transition-all duration-200 text-left ${option.href === '#disabled' ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed' : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-lg'}`}
+                onClick={() => handleMenuAction(option)}
+                disabled={option.href === '#disabled' || isNavigating}
+                className={`group p-6 rounded-xl border shadow-md transition-all duration-200 text-left ${option.href === '#disabled' ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed' : isNavigating ? 'bg-gray-50 border-gray-200 opacity-60 cursor-wait' : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-lg'}`}
               >
                 <div className="flex items-start space-x-4">
-                  <div className={`p-3 rounded-lg ${option.href === '#disabled' ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 text-gray-700 group-hover:scale-110 transition-transform duration-200'}`}>
-                    <Icon className="h-6 w-6" />
+                  <div className={`p-3 rounded-lg ${option.href === '#disabled' ? 'bg-gray-100 text-gray-400' : isNavigating ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 text-gray-700 group-hover:scale-110 transition-transform duration-200'}`}>
+                    {isNavigating ? (
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                    ) : (
+                      <Icon className="h-6 w-6" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className={`text-lg font-semibold ${option.href === '#disabled' ? 'text-gray-500' : 'text-gray-900 group-hover:text-gray-700'}`}>
-                      {option.title}
+                    <h3 className={`text-lg font-semibold ${option.href === '#disabled' ? 'text-gray-500' : isNavigating ? 'text-gray-500' : 'text-gray-900 group-hover:text-gray-700'}`}>
+                      {isNavigating ? 'Ładowanie...' : option.title}
                     </h3>
-                    <p className={`text-sm mt-1 ${option.href === '#disabled' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {option.description}
+                    <p className={`text-sm mt-1 ${option.href === '#disabled' ? 'text-gray-400' : isNavigating ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {isNavigating ? 'Przekierowywanie...' : option.description}
                     </p>
                   </div>
                 </div>
@@ -335,6 +358,27 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
           })}
         </div>
       </section>
+
+      {/* Modal nowego systemu rezerwacji */}
+      <BookingModal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        userId={userId}
+        patientId={patient.$id}
+        patientName={patient.name}
+        onBookingComplete={(appointmentId) => {
+          console.log("Wizyta umówiona:", appointmentId);
+          setIsBookingModalOpen(false);
+          // Odśwież listę wizyt
+          window.location.reload();
+        }}
+        onAppointmentCancelled={() => {
+          // Odśwież dostępność w systemie rezerwacji
+          if ((window as any).refreshBookingAvailability) {
+            (window as any).refreshBookingAvailability();
+          }
+        }}
+      />
     </div>
   );
 };

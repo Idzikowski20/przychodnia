@@ -14,12 +14,15 @@ export interface Patient extends Models.Document {
   emergencyContactNumber: string;
   primaryPhysician: string;
   insuranceProvider: string;
-  insurancePolicyNumber: string;
+  insurancepolicyNumber: string;
   allergies: string | undefined;
   currentMedication: string | undefined;
   familyMedicalHistory: string | undefined;
   pastMedicalHistory: string | undefined;
   privacyConsent: boolean;
+  identificationNumber: string | undefined;
+  identificationDocumentId: string | undefined;
+  identificationDocumentUrl: string | undefined;
 }
 
 export interface Appointment extends Models.Document {
@@ -69,5 +72,20 @@ export interface Room extends Models.Document {
   name: string;
   color: string;
   assignedSpecialist?: string;
+}
+
+export interface Task extends Models.Document {
+  title: string;
+  description?: string;
+  completed: boolean;
+  priority?: 'low' | 'medium' | 'high';
+  dueDate?: string;
+}
+
+export interface Revenue extends Models.Document {
+  amount: number;
+  date: string;
+  type: string;
+  doctorId: string;
 }
 

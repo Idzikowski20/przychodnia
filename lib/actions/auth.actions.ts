@@ -5,6 +5,7 @@ import crypto from "crypto";
 
 import { messaging, users } from "../appwrite.config";
 import { parseStringify } from "../utils";
+import { getPatient } from "./patient.actions";
 
 function generateSixDigitCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -21,7 +22,22 @@ export const requestLoginCode = async (phone: string) => {
     const user = list.total > 0 ? list.users[0] : null;
 
     if (!user) {
-      return parseStringify({ ok: false, error: "Użytkownik o podanym numerze nie istnieje." });
+      return parseStringify({ 
+        ok: false, 
+        error: "Użytkownik o podanym numerze nie istnieje.",
+        userNotFound: true
+      });
+    }
+
+    // Sprawdź czy użytkownik ma kompletny profil pacjenta
+    const patient = await getPatient(user.$id);
+    if (!patient) {
+      return parseStringify({ 
+        ok: false, 
+        error: "Profil pacjenta nie jest kompletny. Zostaniesz przekierowany do dokończenia rejestracji.",
+        needsRegistration: true,
+        userId: user.$id
+      });
     }
 
     const code = generateSixDigitCode();
@@ -73,6 +89,19 @@ export const verifyLoginCode = async (phone: string, code: string) => {
 
     if (hashCode(code) !== storedHash) {
       return parseStringify({ ok: false, error: "Nieprawidłowy kod." });
+    }
+
+    // Sprawdź czy użytkownik ma kompletny profil pacjenta
+    const patient = await getPatient(user.$id);
+    if (!patient) {
+      // Wyczyść kod po poprawnej weryfikacji
+      await users.updatePrefs(user.$id, { loginCodeHash: "", loginCodeExpiresAt: 0 } as any);
+      return parseStringify({ 
+        ok: false, 
+        error: "Profil pacjenta nie jest kompletny. Zostaniesz przekierowany do dokończenia rejestracji.",
+        needsRegistration: true,
+        userId: user.$id
+      });
     }
 
     // Wyczyść kod po poprawnej weryfikacji

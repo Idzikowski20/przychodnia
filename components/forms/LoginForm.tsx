@@ -11,6 +11,15 @@ import CustomFormField, { FormFieldType } from "../CustomFormField";
 import SubmitButton from "../SubmitButton";
 import { requestLoginCode, verifyLoginCode } from "@/lib/actions/auth.actions";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const LoginSchema = z.object({
   phone: z
@@ -18,12 +27,18 @@ const LoginSchema = z.object({
     .refine((phone) => /^\+\d{10,15}$/.test(phone), "Nieprawidłowy numer telefonu"),
 });
 
-export const LoginForm = () => {
+export const LoginForm = ({ onSwitchToRegister, phoneForRegistration }: { 
+  onSwitchToRegister?: (phone: string) => void;
+  phoneForRegistration?: string;
+}) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [otpRequested, setOtpRequested] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [showUserNotFoundDialog, setShowUserNotFoundDialog] = useState(false);
+  const [phoneToRegister, setPhoneToRegister] = useState("");
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const form = useForm<z.infer<typeof LoginSchema>>({
     resolver: zodResolver(LoginSchema),
@@ -37,6 +52,14 @@ export const LoginForm = () => {
       const res = await requestLoginCode(values.phone);
       if (res?.ok) {
         setOtpRequested(true);
+      } else if (res?.needsRegistration && res?.userId) {
+        // Użytkownik istnieje ale nie ma kompletnego profilu - przekieruj do rejestracji
+        setIsNavigating(true);
+        router.push(`/patients/${res.userId}/register`);
+      } else if (res?.userNotFound) {
+        // Użytkownik nie istnieje - pokaż popup
+        setPhoneToRegister(values.phone);
+        setShowUserNotFoundDialog(true);
       } else {
         setError(res?.error || "Nie udało się wysłać kodu.");
       }
@@ -44,6 +67,18 @@ export const LoginForm = () => {
       setError("Wystąpił błąd. Spróbuj ponownie.");
     }
     setIsLoading(false);
+  };
+
+  const handleGoToRegister = () => {
+    setShowUserNotFoundDialog(false);
+    if (onSwitchToRegister) {
+      onSwitchToRegister(phoneToRegister);
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setShowUserNotFoundDialog(false);
+    setPhoneToRegister("");
   };
 
   const onSubmit = async (values: z.infer<typeof LoginSchema>) => {
@@ -57,7 +92,14 @@ export const LoginForm = () => {
     try {
       const res = await verifyLoginCode(values.phone, code);
       if (res?.ok && res?.userId) {
+        // Zapisz userId w localStorage aby pamiętać że użytkownik jest zalogowany
+        localStorage.setItem("loggedInUserId", res.userId);
+        setIsNavigating(true);
         router.push(`/patients/${res.userId}/dashboard`);
+      } else if (res?.needsRegistration && res?.userId) {
+        // Użytkownik istnieje ale nie ma kompletnego profilu - przekieruj do rejestracji
+        setIsNavigating(true);
+        router.push(`/patients/${res.userId}/register`);
       } else {
         setError(res?.error || "Nieprawidłowy kod.");
       }
@@ -103,10 +145,33 @@ export const LoginForm = () => {
           </div>
         )}
 
-        <SubmitButton isLoading={isLoading}>
-          {otpRequested ? "Zaloguj" : "Wyślij kod"}
+        <SubmitButton isLoading={isLoading || isNavigating}>
+          {isNavigating ? "Przekierowywanie..." : otpRequested ? "Zaloguj" : "Wyślij kod"}
         </SubmitButton>
       </form>
+
+      {/* Popup dla użytkownika który nie istnieje */}
+      <AlertDialog open={showUserNotFoundDialog} onOpenChange={setShowUserNotFoundDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konto nie istnieje</AlertDialogTitle>
+            <AlertDialogDescription>
+              Nie znaleziono konta z numerem telefonu <strong>{phoneToRegister}</strong>.
+              <br />
+              <br />
+              Czy chcesz się zarejestrować z tym numerem telefonu?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleCloseDialog} className="bg-gray-500 hover:bg-gray-600">
+              Anuluj
+            </AlertDialogAction>
+            <AlertDialogAction onClick={handleGoToRegister} className="bg-green-500 hover:bg-green-600">
+              Zarejestruj się
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Form>
   );
 };

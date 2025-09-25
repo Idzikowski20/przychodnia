@@ -345,7 +345,7 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
                               (isAppointmentCancelled(appointment) || isAppointmentCompleted(appointment)) ? 'line-through opacity-75 brightness-75' : ''
                             }`}
                             style={{ backgroundColor: getAppointmentColor(appointment) }}
-                            title={`${appointment.patient.name} - ${formatDateTime(appointment.schedule).timeOnly}${roomDisplayName ? ` - ${roomDisplayName}` : ''}`}
+                            title={`${appointment.patient?.name || 'Brak danych'} - ${formatDateTime(appointment.schedule).timeOnly}${roomDisplayName ? ` - ${roomDisplayName}` : ''}`}
                             onClick={() => handleAppointmentClick(appointment)}
                           >
                             <div className="font-medium flex items-center gap-1">
@@ -355,7 +355,7 @@ export const AppointmentCalendar = ({ appointments }: AppointmentCalendarProps) 
                               </div>
                             </div>
                             <div className="opacity-90 flex items-center gap-1">
-                              <span className="truncate flex-1">{appointment.patient.name}</span>
+                              <span className="truncate flex-1">{appointment.patient?.name || 'Brak danych'}</span>
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 {appointment.doctorAvatar && (
                                   <div className="size-4 rounded-full overflow-hidden border border-white/30">

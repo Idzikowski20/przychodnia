@@ -1,12 +1,12 @@
 "use client";
 
 import { CalendarDaysIcon, UsersIcon, HomeIcon, Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
-import { CreditCardIcon, SettingsIcon, UserIcon } from "lucide-react";
+import { CreditCardIcon, SettingsIcon, UserIcon, BarChart3Icon } from "lucide-react";
 import { useState } from "react";
 
 type AdminNavigationProps = {
-  activeSection: "appointments" | "patients" | "specialists" | "office" | "payments" | "settings";
-  onSectionChange: (section: "appointments" | "patients" | "specialists" | "office" | "payments" | "settings") => void;
+  activeSection: "dashboard" | "appointments" | "patients" | "specialists" | "office" | "payments" | "settings";
+  onSectionChange: (section: "dashboard" | "appointments" | "patients" | "specialists" | "office" | "payments" | "settings") => void;
   onLogout?: () => void;
 };
 
@@ -14,6 +14,11 @@ export const AdminNavigation = ({ activeSection, onSectionChange, onLogout }: Ad
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const sections = [
+    {
+      id: "dashboard" as const,
+      label: "Dashboard",
+      icon: BarChart3Icon,
+    },
     {
       id: "appointments" as const,
       label: "Wizyty",

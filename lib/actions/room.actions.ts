@@ -68,7 +68,7 @@ export const updateRoom = async ({
 
       // Usuń specjalistę z innych gabinetów
       for (const existingRoom of allRooms.documents) {
-        if (existingRoom.$id !== roomId && existingRoom.assignedSpecialist === room.assignedSpecialist) {
+        if (existingRoom.$id !== roomId && (existingRoom as any).assignedSpecialist === room.assignedSpecialist) {
           await databases.updateDocument(
             DATABASE_ID!,
             ROOM_COLLECTION_ID!,

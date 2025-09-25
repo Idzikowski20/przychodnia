@@ -1,12 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PatientForm } from "./forms/PatientForm";
 import { LoginForm } from "./forms/LoginForm";
+import LoggedInUser from "./LoggedInUser";
 
 export const HomeAuthSwitcher = () => {
   const [active, setActive] = useState<"register" | "login">("register");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [phoneForRegistration, setPhoneForRegistration] = useState<string>("");
 
+  useEffect(() => {
+    // Sprawdź czy użytkownik jest zalogowany
+    const checkLoginStatus = () => {
+      const storedUserId = localStorage.getItem("loggedInUserId");
+      setIsLoggedIn(!!storedUserId);
+      setIsLoading(false);
+    };
+
+    checkLoginStatus();
+  }, []);
+
+  const handleSwitchToRegister = (phone: string) => {
+    setPhoneForRegistration(phone);
+    setActive("register");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="w-full">
+        <div className="flex-1 space-y-6">
+          <section className="mb-12 space-y-4">
+            <h1 className="text-4xl font-bold text-gray-900">Ładowanie...</h1>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
+  // Jeśli użytkownik jest zalogowany, pokaż komponent LoggedInUser
+  if (isLoggedIn) {
+    return <LoggedInUser />;
+  }
+
+  // Jeśli użytkownik nie jest zalogowany, pokaż formularze logowania/rejestracji
   return (
     <div className="w-full">
       <div className="mb-8 flex justify-center">
@@ -34,7 +72,11 @@ export const HomeAuthSwitcher = () => {
         </div>
       </div>
 
-      {active === "register" ? <PatientForm /> : <LoginForm />}
+      {active === "register" ? (
+        <PatientForm initialPhone={phoneForRegistration} />
+      ) : (
+        <LoginForm onSwitchToRegister={handleSwitchToRegister} />
+      )}
     </div>
   );
 };

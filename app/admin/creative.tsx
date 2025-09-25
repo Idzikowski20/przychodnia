@@ -2,14 +2,29 @@
 
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { getRecentAppointmentList } from "@/lib/actions/appointment.actions"
-import { getPatients, updatePatient } from "@/lib/actions/patient.actions"
-import { getDoctors } from "@/lib/actions/doctor.actions"
+import { SecurityPopup } from "@/components/SecurityPopup"
+import { useActivityTracker } from "@/hooks/useActivityTracker"
+import { getRecentAppointmentList, markAppointmentAsCompleted, getDashboardStats, getUpcomingAppointments, getRevenueData } from "@/lib/actions/appointment.actions"
+import { getPatients, updatePatient, deletePatient } from "@/lib/actions/patient.actions"
+import { getDoctors, createDoctor, updateDoctor } from "@/lib/actions/doctor.actions"
+import { getSchedules, getScheduleSlots, getScheduleSlotsForDate, createSchedule, createScheduleSlot, updateScheduleSlot, deleteScheduleSlot } from "@/lib/actions/schedule.actions"
+import { getTasks, createTask, updateTask, deleteTask, toggleTaskCompletion } from "@/lib/actions/task.actions"
+import { uploadFileToStorage } from "@/lib/upload"
 import { StatusBadge } from "@/components/StatusBadge"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
+import { useToast } from "@/components/ui/toast"
+
+// Predefiniowane gabinety
+const PREDEFINED_ROOMS = [
+  { id: 1, name: "Gabinet 1", color: "#3B82F6" }, // Niebieski
+  { id: 2, name: "Gabinet 2", color: "#10B981" }, // Zielony
+  { id: 3, name: "Gabinet 3", color: "#F59E0B" }, // Pomarańczowy
+  { id: 4, name: "Gabinet 4", color: "#EF4444" }, // Czerwony
+]
 import { AppointmentDetails } from "@/components/AppointmentDetails"
+import { AppointmentDetailsContent } from "@/components/AppointmentDetailsContent"
 import { AppointmentModal } from "@/components/AppointmentModal"
 import { AppointmentNotesModal } from "@/components/AppointmentNotesModal"
-import { markAppointmentAsCompleted } from "@/lib/actions/appointment.actions"
 import {
   Award,
   Bell,
@@ -18,7 +33,7 @@ import {
   Brush,
   Calendar,
   Camera,
-  ChevronDown,
+  CheckCircle,
   Cloud,
   Code,
   CreditCard,
@@ -62,10 +77,15 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   User,
   Edit3,
   Save,
   X as XIcon,
+  Trash2,
+  BarChart3,
+  PhoneOff,
 } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -79,316 +99,22 @@ import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-// Sample data for apps
-const apps = [
-  {
-    name: "PixelMaster",
-    icon: <ImageIcon className="text-violet-500" />,
-    description: "Advanced image editing and composition",
-    category: "Creative",
-    recent: true,
-    new: false,
-    progress: 100,
-  },
-  {
-    name: "VectorPro",
-    icon: <Brush className="text-orange-500" />,
-    description: "Professional vector graphics creation",
-    category: "Creative",
-    recent: true,
-    new: false,
-    progress: 100,
-  },
-  {
-    name: "VideoStudio",
-    icon: <Video className="text-pink-500" />,
-    description: "Cinematic video editing and production",
-    category: "Video",
-    recent: true,
-    new: false,
-    progress: 100,
-  },
-  {
-    name: "MotionFX",
-    icon: <Sparkles className="text-blue-500" />,
-    description: "Stunning visual effects and animations",
-    category: "Video",
-    recent: false,
-    new: false,
-    progress: 100,
-  },
-  {
-    name: "PageCraft",
-    icon: <Layers className="text-red-500" />,
-    description: "Professional page design and layout",
-    category: "Creative",
-    recent: false,
-    new: false,
-    progress: 100,
-  },
-  {
-    name: "UXFlow",
-    icon: <LayoutGrid className="text-fuchsia-500" />,
-    description: "Intuitive user experience design",
-    category: "Design",
-    recent: false,
-    new: true,
-    progress: 85,
-  },
-  {
-    name: "PhotoLab",
-    icon: <Camera className="text-teal-500" />,
-    description: "Advanced photo editing and organization",
-    category: "Photography",
-    recent: false,
-    new: false,
-    progress: 100,
-  },
-  {
-    name: "DocMaster",
-    icon: <FileText className="text-red-600" />,
-    description: "Document editing and management",
-    category: "Document",
-    recent: false,
-    new: false,
-    progress: 100,
-  },
-  {
-    name: "WebCanvas",
-    icon: <Code className="text-emerald-500" />,
-    description: "Web design and development",
-    category: "Web",
-    recent: false,
-    new: true,
-    progress: 70,
-  },
-  {
-    name: "3DStudio",
-    icon: <CuboidIcon className="text-indigo-500" />,
-    description: "3D modeling and rendering",
-    category: "3D",
-    recent: false,
-    new: true,
-    progress: 60,
-  },
-  {
-    name: "FontForge",
-    icon: <Type className="text-amber-500" />,
-    description: "Typography and font creation",
-    category: "Typography",
-    recent: false,
-    new: false,
-    progress: 100,
-  },
-  {
-    name: "ColorPalette",
-    icon: <Palette className="text-purple-500" />,
-    description: "Color scheme creation and management",
-    category: "Design",
-    recent: false,
-    new: false,
-    progress: 100,
-  },
-]
+// Odchudzone: usunięto demonstracyjne "apps" (nieużywane)
 
-// Sample data for recent files
-const recentFiles = [
-  {
-    name: "Brand Redesign.pxm",
-    app: "PixelMaster",
-    modified: "2 hours ago",
-    icon: <ImageIcon className="text-violet-500" />,
-    shared: true,
-    size: "24.5 MB",
-    collaborators: 3,
-  },
-  {
-    name: "Company Logo.vec",
-    app: "VectorPro",
-    modified: "Yesterday",
-    icon: <Brush className="text-orange-500" />,
-    shared: true,
-    size: "8.2 MB",
-    collaborators: 2,
-  },
-  {
-    name: "Product Launch Video.vid",
-    app: "VideoStudio",
-    modified: "3 days ago",
-    icon: <Video className="text-pink-500" />,
-    shared: false,
-    size: "1.2 GB",
-    collaborators: 0,
-  },
-  {
-    name: "UI Animation.mfx",
-    app: "MotionFX",
-    modified: "Last week",
-    icon: <Sparkles className="text-blue-500" />,
-    shared: true,
-    size: "345 MB",
-    collaborators: 4,
-  },
-  {
-    name: "Magazine Layout.pgc",
-    app: "PageCraft",
-    modified: "2 weeks ago",
-    icon: <Layers className="text-red-500" />,
-    shared: false,
-    size: "42.8 MB",
-    collaborators: 0,
-  },
-  {
-    name: "Mobile App Design.uxf",
-    app: "UXFlow",
-    modified: "3 weeks ago",
-    icon: <LayoutGrid className="text-fuchsia-500" />,
-    shared: true,
-    size: "18.3 MB",
-    collaborators: 5,
-  },
-  {
-    name: "Product Photography.phl",
-    app: "PhotoLab",
-    modified: "Last month",
-    icon: <Camera className="text-teal-500" />,
-    shared: false,
-    size: "156 MB",
-    collaborators: 0,
-  },
-  {
-    name: "Product Photography.phl",
-    app: "PhotoLab",
-    modified: "Last month",
-    icon: <Camera className="text-teal-500" />,
-    shared: false,
-    size: "156 MB",
-    collaborators: 0,
-  },
-]
+// Odchudzone: usunięto demonstracyjne "recentFiles" (nieużywane)
 
-// Sample data for projects
-const projects = [
-  {
-    name: "Website Redesign",
-    description: "Complete overhaul of company website",
-    progress: 75,
-    dueDate: "June 15, 2025",
-    members: 4,
-    files: 23,
-  },
-  {
-    name: "Mobile App Launch",
-    description: "Design and assets for new mobile application",
-    progress: 60,
-    dueDate: "July 30, 2025",
-    members: 6,
-    files: 42,
-  },
-  {
-    name: "Brand Identity",
-    description: "New brand guidelines and assets",
-    progress: 90,
-    dueDate: "May 25, 2025",
-    members: 3,
-    files: 18,
-  },
-  {
-    name: "Marketing Campaign",
-    description: "Summer promotion materials",
-    progress: 40,
-    dueDate: "August 10, 2025",
-    members: 5,
-    files: 31,
-  },
-]
+// Odchudzone: usunięto demonstracyjne "projects" (nieużywane)
 
-// Sample data for tutorials
-const tutorials = [
-  {
-    title: "Mastering Digital Illustration",
-    description: "Learn advanced techniques for creating stunning digital art",
-    duration: "1h 45m",
-    level: "Advanced",
-    instructor: "Sarah Chen",
-    category: "Illustration",
-    views: "24K",
-  },
-  {
-    title: "UI/UX Design Fundamentals",
-    description: "Essential principles for creating intuitive user interfaces",
-    duration: "2h 20m",
-    level: "Intermediate",
-    instructor: "Michael Rodriguez",
-    category: "Design",
-    views: "56K",
-  },
-  {
-    title: "Video Editing Masterclass",
-    description: "Professional techniques for cinematic video editing",
-    duration: "3h 10m",
-    level: "Advanced",
-    instructor: "James Wilson",
-    category: "Video",
-    views: "32K",
-  },
-  {
-    title: "Typography Essentials",
-    description: "Create beautiful and effective typography for any project",
-    duration: "1h 30m",
-    level: "Beginner",
-    instructor: "Emma Thompson",
-    category: "Typography",
-    views: "18K",
-  },
-  {
-    title: "Color Theory for Designers",
-    description: "Understanding color relationships and psychology",
-    duration: "2h 05m",
-    level: "Intermediate",
-    instructor: "David Kim",
-    category: "Design",
-    views: "41K",
-  },
-]
+// Odchudzone: usunięto demonstracyjne "tutorials" (nieużywane)
 
-// Sample data for community posts
-const communityPosts = [
-  {
-    title: "Minimalist Logo Design",
-    author: "Alex Morgan",
-    likes: 342,
-    comments: 28,
-    image: "/placeholder.svg?height=300&width=400",
-    time: "2 days ago",
-  },
-  {
-    title: "3D Character Concept",
-    author: "Priya Sharma",
-    likes: 518,
-    comments: 47,
-    image: "/placeholder.svg?height=300&width=400",
-    time: "1 week ago",
-  },
-  {
-    title: "UI Dashboard Redesign",
-    author: "Thomas Wright",
-    likes: 276,
-    comments: 32,
-    image: "/placeholder.svg?height=300&width=400",
-    time: "3 days ago",
-  },
-  {
-    title: "Product Photography Setup",
-    author: "Olivia Chen",
-    likes: 189,
-    comments: 15,
-    image: "/placeholder.svg?height=300&width=400",
-    time: "5 days ago",
-  },
-]
+// Odchudzone: usunięto demonstracyjne "communityPosts" (nieużywane)
 
 const sidebarItems = [
+  {
+    title: "Pulpit",
+    icon: <Home />,
+    value: "dashboard",
+  },
   {
     title: "Wizyty",
     icon: <Calendar />,
@@ -400,14 +126,9 @@ const sidebarItems = [
     value: "patients",
   },
   {
-    title: "Specjaliści",
+    title: "Grafik",
     icon: <User />,
     value: "specialists",
-  },
-  {
-    title: "Biuro",
-    icon: <Home />,
-    value: "office",
   },
   {
     title: "Płatności",
@@ -426,7 +147,7 @@ const visitsData = [
     date: "13/09/2025",
     time: "17:45",
     doctor: "Dr. Sylwia Klejnowska",
-    doctorAvatar: "/placeholder.svg?height=32&width=32",
+    doctorAvatar: "/assets/images/sylwia.jpg",
     actions: ["Szczegóły", "Przełóż", "Odbyta", "Anuluj"],
   },
   {
@@ -438,7 +159,7 @@ const visitsData = [
     date: "15/09/2025",
     time: "12:30",
     doctor: "Dr. Sylwia Klejnowska",
-    doctorAvatar: "/placeholder.svg?height=32&width=32",
+    doctorAvatar: "/assets/images/sylwia.jpg",
     actions: ["Szczegóły", "Potwierdź", "Anuluj"],
   },
   {
@@ -450,7 +171,7 @@ const visitsData = [
     date: "15/09/2025",
     time: "08:00",
     doctor: "Dr. Sylwia Klejnowska",
-    doctorAvatar: "/placeholder.svg?height=32&width=32",
+    doctorAvatar: "/assets/images/sylwia.jpg",
     actions: ["Szczegóły", "Notatka", "Umów Ponownie"],
   },
   {
@@ -462,7 +183,7 @@ const visitsData = [
     date: "12/09/2025",
     time: "08:15",
     doctor: "Dr. Sylwia Klejnowska",
-    doctorAvatar: "/placeholder.svg?height=32&width=32",
+    doctorAvatar: "/assets/images/sylwia.jpg",
     actions: ["Szczegóły", "Przełóż", "Odbyta", "Anuluj"],
   },
   {
@@ -474,15 +195,25 @@ const visitsData = [
     date: "12/09/2025",
     time: "14:00",
     doctor: "Dr. Sylwia Klejnowska",
-    doctorAvatar: "/placeholder.svg?height=32&width=32",
+    doctorAvatar: "/assets/images/sylwia.jpg",
     actions: ["Szczegóły"],
   },
 ]
 
 export function DesignaliCreative() {
-  const [activeTab, setActiveTab] = useState("wizyty")
+  const [activeTab, setActiveTab] = useState("dashboard")
   const [selectedVisit, setSelectedVisit] = useState<any>(null)
   const [modalType, setModalType] = useState<string | null>(null)
+  
+  // System bezpieczeństwa
+  const [showSecurityPopup, setShowSecurityPopup] = useState(false)
+  const [sessionMinutes, setSessionMinutes] = useState<number>(10)
+  const [isTimerSettingsOpen, setIsTimerSettingsOpen] = useState(false)
+  const { isActive, timeRemaining, formattedTime, resetTimer } = useActivityTracker({
+    timeoutMinutes: sessionMinutes,
+    onTimeout: () => setShowSecurityPopup(true),
+    enabled: true
+  })
   const [appointments, setAppointments] = useState<any>(null)
   const [patients, setPatients] = useState<any[]>([])
   const [doctors, setDoctors] = useState<any[]>([])
@@ -490,12 +221,62 @@ export function DesignaliCreative() {
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [calendarExpanded, setCalendarExpanded] = useState(false)
+  const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
   const [selectedPatient, setSelectedPatient] = useState<any>(null)
   const [showPatientModal, setShowPatientModal] = useState(false)
   const [editingField, setEditingField] = useState<string | null>(null)
   const [editValue, setEditValue] = useState<string>("")
+  
+  // Dashboard states
+  const [dashboardStats, setDashboardStats] = useState<any>(null)
+  const [revenueData, setRevenueData] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [dashboardLoading, setDashboardLoading] = useState(false)
+  
+  // Schedule states
+  const [schedules, setSchedules] = useState<any[]>([])
+  const [scheduleSlots, setScheduleSlots] = useState<any[]>([])
+  const [currentWeek, setCurrentWeek] = useState(new Date())
+  const [selectedDoctor, setSelectedDoctor] = useState<any>(null)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [scheduleModalType, setScheduleModalType] = useState<"working" | "vacation" | "sick_leave">("working")
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false)
+  const [monthlyStats, setMonthlyStats] = useState<{[key: string]: any}>({})
+  const [modalTimeSlots, setModalTimeSlots] = useState<Array<{
+    id: string
+    startTime: string
+    endTime: string
+    type: "commercial" | "nfz"
+    appointmentDuration: number
+    consultationFee: number
+  }>>([])
+  const [currentSchedule, setCurrentSchedule] = useState<any>(null)
+  const [scheduleFilter, setScheduleFilter] = useState<"all" | "fixed" | "weekly">("weekly")
+  const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false)
+  const [newSpecialist, setNewSpecialist] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    specialization: "",
+    licenseNumber: "",
+    isActive: true,
+    avatar: "",
+    bio: "",
+    workingHours: "{}",
+    breakDuration: "15",
+    maxAppointmentsPerDay: "20",
+    currency: "PLN",
+    notes: ""
+  })
+  const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string>("")
+  const [selectedRoom, setSelectedRoom] = useState<number | null>(null)
+  // Nawigacja kalendarza miesięcznego
+  const [monthCursor, setMonthCursor] = useState<Date>(new Date())
 
   const openModal = (visit: any, type: string) => {
     setSelectedVisit(visit)
@@ -507,14 +288,24 @@ export function DesignaliCreative() {
     setModalType(null)
   }
 
+  // Funkcje systemu bezpieczeństwa
+  const handleSecuritySuccess = () => {
+    setShowSecurityPopup(false)
+    // Resetuj timer - nowa sesja 10 minutowa
+    resetTimer()
+  }
+
+  const handleSecurityClose = () => {
+    // Nie pozwalaj na zamknięcie bez kodu
+    return
+  }
+
   const fetchAppointments = async () => {
     try {
       const appointmentsData = await getRecentAppointmentList()
       setAppointments(appointmentsData)
     } catch (error) {
       console.error("Błąd podczas pobierania wizyt:", error)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -536,6 +327,865 @@ export function DesignaliCreative() {
       console.error("Błąd podczas pobierania lekarzy:", error)
     }
   }
+
+  // Schedule functions
+  const fetchSchedules = async () => {
+    try {
+      const schedulesData = await getSchedules()
+      console.log("[fetchSchedules] schedules:", schedulesData?.length)
+      setSchedules(schedulesData || [])
+      
+      // Pobierz sloty dla wszystkich harmonogramów
+      const allSlots = []
+      for (const schedule of schedulesData || []) {
+        const slots = await getScheduleSlots(schedule.$id)
+        console.log("[fetchSchedules] schedule", schedule.$id, "slots:", slots?.length)
+        allSlots.push(...slots)
+      }
+      console.log("[fetchSchedules] total slots:", allSlots.length)
+      setScheduleSlots(allSlots)
+    } catch (error) {
+      console.error("Błąd podczas pobierania harmonogramów:", error)
+    }
+  }
+
+  const initializeMonthlySchedule = async () => {
+    try {
+      const schedulesData = await getSchedules()
+      if (!schedulesData || schedulesData.length === 0) return
+
+      const currentMonth = monthCursor
+      const monthDates = getMonthDates(currentMonth)
+      
+      // Sprawdź czy już istnieją sloty dla tego miesiąca
+      const hasExistingSlots = scheduleSlots.some(slot => 
+        slot.specificDate && 
+        monthDates.some(date => 
+          new Date(slot.specificDate).toDateString() === date.toDateString()
+        )
+      )
+
+      // Jeśli już istnieją sloty dla tego miesiąca, nie inicjalizuj ponownie
+      if (hasExistingSlots) {
+        console.log("Harmonogram miesięczny już zainicjalizowany dla tego miesiąca")
+        return
+      }
+
+      console.log("Inicjalizacja harmonogramu miesięcznego...")
+      
+      for (const schedule of schedulesData) {
+        const doctor = doctors.find(d => d.$id === schedule.doctorId)
+        if (!doctor) continue
+
+        for (const date of monthDates) {
+          const dayOfWeek = date.getDay() === 0 ? 7 : date.getDay()
+          const weeklySlots = scheduleSlots.filter(slot => 
+            slot.scheduleId === schedule.$id && slot.dayOfWeek === dayOfWeek
+          )
+
+          // Sprawdź czy już istnieją sloty dla tej daty
+          const existingSlots = scheduleSlots.filter(slot => 
+            slot.scheduleId === schedule.$id &&
+            slot.specificDate && 
+            new Date(slot.specificDate).toDateString() === date.toDateString()
+          )
+
+          // Jeśli nie ma slotów dla tej daty, ale są sloty tygodniowe, utwórz je
+          if (existingSlots.length === 0 && weeklySlots.length > 0) {
+            for (const weeklySlot of weeklySlots) {
+              const toLocalDateKey = (d: Date) => {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+              }
+
+              await createScheduleSlot({
+                scheduleId: schedule.$id,
+                doctorId: schedule.doctorId,
+                specificDate: toLocalDateKey(date),
+                startTime: weeklySlot.startTime,
+                endTime: weeklySlot.endTime,
+                type: weeklySlot.type,
+                status: weeklySlot.status,
+                roomName: weeklySlot.roomName,
+                roomColor: weeklySlot.roomColor
+              })
+            }
+          }
+        }
+      }
+
+      // Odśwież dane
+      await fetchSchedules()
+      console.log("Harmonogram miesięczny zainicjalizowany pomyślnie")
+    } catch (error) {
+      console.error("Błąd podczas inicjalizacji harmonogramu miesięcznego:", error)
+    }
+  }
+
+  // Specialist form functions
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setSelectedAvatar(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setAvatarPreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleSpecialistInputChange = (field: string, value: string) => {
+    setNewSpecialist(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  const handleAddSpecialist = async () => {
+    try {
+      // Walidacja wymaganych pól
+      if (!newSpecialist.name || !newSpecialist.email || !newSpecialist.specialization) {
+        toast({ variant: "destructive", title: "Brak danych", description: "Proszę wypełnić wszystkie wymagane pola" })
+        return
+      }
+
+      // Walidacja formatu emaila - bardzo restrykcyjna dla Appwrite
+      const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(newSpecialist.email)) {
+        toast({ variant: "destructive", title: "Nieprawidłowy email", description: "Użyj znaków a-z, A-Z, 0-9, ., _, -" })
+        return
+      }
+      
+      // Konwersja polskich znaków na ASCII dla Appwrite (opcjonalne)
+      let processedEmail = newSpecialist.email;
+      const polishToAscii: { [key: string]: string } = {
+        'ą': 'a', 'ć': 'c', 'ę': 'e', 'ł': 'l', 'ń': 'n', 'ó': 'o', 'ś': 's', 'ź': 'z', 'ż': 'z',
+        'Ą': 'A', 'Ć': 'C', 'Ę': 'E', 'Ł': 'L', 'Ń': 'N', 'Ó': 'O', 'Ś': 'S', 'Ź': 'Z', 'Ż': 'Z'
+      };
+      
+      // Zamień polskie znaki na ASCII
+      processedEmail = processedEmail.replace(/[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, (match) => polishToAscii[match] || match);
+      
+      console.log("Oryginalny email:", newSpecialist.email);
+      console.log("Przetworzony email:", processedEmail);
+
+      let avatarUrl = "";
+      
+      // Wgraj plik do Appwrite Storage jeśli został wybrany
+      if (selectedAvatar) {
+        try {
+          avatarUrl = await uploadFileToStorage(selectedAvatar);
+        } catch (uploadError) {
+          console.error("Błąd podczas wgrywania zdjęcia:", uploadError);
+          toast({ variant: "destructive", title: "Błąd uploadu", description: "Specjalista zostanie dodany bez zdjęcia" })
+        }
+      }
+
+      // Przygotuj dane do zapisania
+      const specialistData = {
+        ...newSpecialist,
+        name: `${newSpecialist.name.split(' ')[0]} ${newSpecialist.name.split(' ')[1] || ''}`.trim(),
+        email: processedEmail, // Użyj przetworzonego emaila bez polskich znaków
+        licenseNumber: newSpecialist.licenseNumber || `LIC-${Date.now()}`,
+        avatar: avatarUrl,
+        appointmentDuration: "30", // Domyślna wartość
+        consultationFee: "150" // Domyślna wartość
+      }
+
+      // Zapisz specjalistę
+      console.log("Dane do zapisania:", specialistData);
+      const result = await createDoctor(specialistData)
+      
+      if (result) {
+        // Odśwież listę lekarzy
+        await fetchDoctors()
+        
+        // Zamknij modal i wyczyść formularz
+        setShowAddEmployeeModal(false)
+        setNewSpecialist({
+          name: "",
+          email: "",
+          phone: "",
+          specialization: "",
+          licenseNumber: "",
+          isActive: true,
+          avatar: "",
+          bio: "",
+          workingHours: "{}",
+          breakDuration: "15",
+          maxAppointmentsPerDay: "20",
+          currency: "PLN",
+          notes: ""
+        })
+        setSelectedAvatar(null)
+        setAvatarPreview("")
+        
+        toast({ variant: "success", title: "Dodano specjalistę" })
+      }
+    } catch (error: any) {
+      console.error("Błąd podczas dodawania specjalisty:", error)
+      console.error("Szczegóły błędu:", error.response)
+      
+      if (error.message && error.message.includes("email")) {
+        toast({ variant: "destructive", title: "Błąd", description: "Nieprawidłowy format emaila" })
+      } else if (error.response && error.response.message) {
+        toast({ variant: "destructive", title: "Błąd", description: String(error.response?.message || "Błąd zapisu") })
+      } else {
+        toast({ variant: "destructive", title: "Błąd", description: String(error.message || "Nieznany błąd") })
+      }
+    }
+  }
+
+  const getWeekDates = (date: Date) => {
+    const week = []
+    const input = new Date(date)
+    
+    // Znajdź poniedziałek tygodnia dla podanej daty
+    const monday = new Date(input)
+    const day = input.getDay()
+    const diff = day === 0 ? -6 : 1 - day // poniedziałek
+    monday.setDate(input.getDate() + diff)
+
+    const startOfWeek = monday
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek)
+      d.setDate(startOfWeek.getDate() + i)
+      week.push(d)
+    }
+    return week
+  }
+
+  // Funkcje pomocnicze do podsumowania miesięcznego
+  const getMonthlyStats = async (doctorId: string, month: Date) => {
+    try {
+      const year = month.getFullYear()
+      const monthNumber = month.getMonth() + 1
+      
+      // Importuj funkcję z actions
+      const { getMonthlyStats: getStatsFromDB } = await import('../../lib/actions/schedule.actions')
+      
+      // Pobierz statystyki z bazy danych
+      const stats = await getStatsFromDB(doctorId, year, monthNumber)
+      
+      return {
+        totalHours: stats.totalHours || 0,
+        vacationDays: stats.vacationDays || 0,
+        sickLeaveDays: stats.sickLeaveDays || 0,
+        workingDays: stats.workingDays || 0,
+        remainingVacationDays: stats.remainingVacationDays || 21
+      }
+    } catch (error) {
+      console.error('Error fetching monthly stats:', error)
+      return {
+        totalHours: 0,
+        vacationDays: 0,
+        sickLeaveDays: 0,
+        workingDays: 0,
+        remainingVacationDays: 21
+      }
+    }
+  }
+
+  const getMonthDates = (date: Date) => {
+    const month = []
+    const year = date.getFullYear()
+    const monthIndex = date.getMonth()
+    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate()
+    
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(year, monthIndex, i)
+      month.push(d)
+    }
+    return month
+  }
+
+  // Zwraca poniedziałki wszystkich tygodni zawierających się w danym miesiącu
+  const getWeeksOfMonth = (date: Date) => {
+    const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1)
+    const mondayOffset = (firstOfMonth.getDay() + 6) % 7
+    const gridStart = new Date(firstOfMonth)
+    gridStart.setDate(firstOfMonth.getDate() - mondayOffset)
+    const weeks: Date[] = []
+    for (let w = 0; w < 6; w++) {
+      const d = new Date(gridStart)
+      d.setDate(gridStart.getDate() + w * 7)
+      weeks.push(d)
+    }
+    return weeks
+  }
+
+  const formatWeekRange = (date: Date) => {
+    const week = getWeekDates(date)
+    const start = week[0]
+    const end = week[6]
+    
+    const startStr = start.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })
+    const endStr = end.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' })
+    
+    return `${startStr} - ${endStr}`
+  }
+
+  const getDaySlots = (doctorId: string, dayOfWeek: number) => {
+    const doctorScheduleIds = schedules.filter(s => s.doctorId === doctorId).map(s => s.$id)
+    return scheduleSlots.filter(slot => 
+      (slot.doctorId === doctorId || doctorScheduleIds.includes(slot.scheduleId)) &&
+      slot.dayOfWeek === dayOfWeek
+    )
+  }
+
+  const getDaySlotsForDate = (doctorId: string, date: Date) => {
+    const doctorScheduleIds = schedules.filter(s => s.doctorId === doctorId).map(s => s.$id)
+    if (doctorScheduleIds.length === 0) return []
+    const toLocalDateKey = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    const normalizeSpecificDate = (value: any): string | null => {
+      if (!value) return null
+      if (typeof value === 'string') {
+        // jeśli już jest w formacie YYYY-MM-DD – zwróć bez zmian
+        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+        const d = new Date(value)
+        if (isNaN(d.getTime())) return null
+        return toLocalDateKey(d)
+      }
+      const d = new Date(value)
+      if (isNaN(d.getTime())) return null
+      return toLocalDateKey(d)
+    }
+    const targetKey = toLocalDateKey(date)
+    const filtered = scheduleSlots.filter(slot => 
+      (slot.doctorId === doctorId || doctorScheduleIds.includes(slot.scheduleId)) &&
+      normalizeSpecificDate(slot.specificDate) === targetKey
+    )
+    // debug
+    // console.log('[getDaySlotsForDate]', {doctorId, date: targetKey, found: filtered.length})
+    return filtered
+  }
+
+  const openScheduleModalForDate = async (doctor: any, date: Date) => {
+    setSelectedDoctor(doctor)
+    setSelectedDate(date)
+    
+    // Sprawdź czy istnieją sloty dla tej daty i pobierz gabinet z pierwszego slotu
+    const daySlots = getDaySlotsForDate(doctor.$id, date)
+    if (daySlots.length > 0 && daySlots[0].roomName) {
+      let roomName = daySlots[0].roomName;
+      try {
+        const roomData = JSON.parse(daySlots[0].roomName);
+        roomName = roomData.name || daySlots[0].roomName;
+      } catch (e) {
+        // Keep original roomName if not JSON
+      }
+      const room = PREDEFINED_ROOMS.find(r => r.name === roomName)
+      setSelectedRoom(room ? room.id : null)
+    } else {
+      setSelectedRoom(null)
+    }
+    
+    // Znajdź lub stwórz harmonogram dla tego lekarza
+    let schedule = schedules.find(s => s.doctorId === doctor.$id)
+    if (!schedule) {
+      const newSchedule = await createSchedule({
+        doctorId: doctor.$id,
+        weekStart: new Date(),
+        weekEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        isActive: true
+      })
+      schedule = newSchedule
+      setSchedules(prev => [...prev, schedule])
+    }
+    
+    setCurrentSchedule(schedule)
+    
+    // Załaduj istniejące sloty dla tej daty
+    const existingSlots = getDaySlotsForDate(doctor.$id, date)
+    
+    if (existingSlots.length > 0) {
+      const firstSlot = existingSlots[0]
+      if (firstSlot.status === 'vacation') {
+        setScheduleModalType('vacation')
+        setModalTimeSlots([])
+      } else if (firstSlot.status === 'sick_leave') {
+        setScheduleModalType('sick_leave')
+        setModalTimeSlots([])
+      } else {
+        setScheduleModalType('working')
+        setModalTimeSlots(existingSlots.map(slot => {
+          // Parse appointment duration and consultation fee from roomName JSON
+          let appointmentDuration = 60; // Default 60 minutes
+          let consultationFee = 150; // Default fee
+          
+          if (slot.roomName) {
+            try {
+              const roomData = JSON.parse(slot.roomName);
+              appointmentDuration = roomData.appointmentDuration || 60;
+              consultationFee = roomData.consultationFee || (slot.type === 'nfz' ? 0 : 150);
+            } catch (e) {
+              // If roomName is not JSON, use default values
+              appointmentDuration = 60;
+              consultationFee = slot.type === 'nfz' ? 0 : 150;
+            }
+          }
+          
+          return {
+            id: slot.$id,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            type: slot.type,
+            appointmentDuration,
+            consultationFee
+          }
+        }))
+      }
+    } else {
+      // Jeśli nie ma slotów dla tej daty, sprawdź czy istnieje harmonogram tygodniowy dla tego dnia
+      const dayOfWeek = date.getDay() === 0 ? 7 : date.getDay()
+      const weeklySlots = getDaySlots(doctor.$id, dayOfWeek)
+      
+      if (weeklySlots.length > 0) {
+        // Użyj harmonogramu tygodniowego jako podstawy
+        const firstSlot = weeklySlots[0]
+        if (firstSlot.status === 'vacation') {
+          setScheduleModalType('vacation')
+          setModalTimeSlots([])
+        } else if (firstSlot.status === 'sick_leave') {
+          setScheduleModalType('sick_leave')
+          setModalTimeSlots([])
+        } else {
+          setScheduleModalType('working')
+        setModalTimeSlots(weeklySlots.map(slot => {
+          // Parse appointment duration and consultation fee from roomName JSON
+          let appointmentDuration = 60; // Default 60 minutes
+          let consultationFee = 150; // Default fee
+          
+          if (slot.roomName) {
+            try {
+              const roomData = JSON.parse(slot.roomName);
+              appointmentDuration = roomData.appointmentDuration || 60;
+              consultationFee = roomData.consultationFee || (slot.type === 'nfz' ? 0 : 150);
+            } catch (e) {
+              // If roomName is not JSON, use default values
+              appointmentDuration = 60;
+              consultationFee = slot.type === 'nfz' ? 0 : 150;
+            }
+          }
+          
+          return {
+            id: `temp-${Math.random()}`,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            type: slot.type,
+            appointmentDuration,
+            consultationFee
+          }
+        }))
+        }
+        
+        // Ustaw gabinet z harmonogramu tygodniowego
+        if (weeklySlots[0].roomName) {
+          let roomName = weeklySlots[0].roomName;
+          try {
+            const roomData = JSON.parse(weeklySlots[0].roomName);
+            roomName = roomData.name || weeklySlots[0].roomName;
+          } catch (e) {
+            // Keep original roomName if not JSON
+          }
+          const room = PREDEFINED_ROOMS.find(r => r.name === roomName)
+          setSelectedRoom(room ? room.id : null)
+        }
+      } else {
+        setScheduleModalType('working')
+        setModalTimeSlots([])
+      }
+    }
+    
+    setShowScheduleModal(true)
+  }
+
+  const openScheduleModal = async (doctor: any, dayOfWeek: number, specificDate?: Date) => {
+    setSelectedDoctor(doctor)
+    setSelectedDay(dayOfWeek)
+    setSelectedDate(specificDate || null)
+    
+    // Sprawdź czy istnieją sloty dla tego dnia i pobierz gabinet z pierwszego slotu
+    let daySlots
+    if (specificDate) {
+      daySlots = getDaySlotsForDate(doctor.$id, specificDate)
+    } else {
+      daySlots = getDaySlots(doctor.$id, dayOfWeek)
+    }
+    
+    if (daySlots.length > 0 && daySlots[0].roomName) {
+      let roomName = daySlots[0].roomName;
+      try {
+        const roomData = JSON.parse(daySlots[0].roomName);
+        roomName = roomData.name || daySlots[0].roomName;
+      } catch (e) {
+        // Keep original roomName if not JSON
+      }
+      const room = PREDEFINED_ROOMS.find(r => r.name === roomName)
+      setSelectedRoom(room ? room.id : null)
+    } else {
+      setSelectedRoom(null)
+    }
+    
+    // Znajdź lub stwórz harmonogram dla tego lekarza
+    let schedule = schedules.find(s => s.doctorId === doctor.$id)
+    if (!schedule) {
+      // Stwórz nowy harmonogram dla tego tygodnia
+      const weekStart = new Date(currentWeek)
+      weekStart.setDate(currentWeek.getDate() - currentWeek.getDay() + 1)
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekStart.getDate() + 6)
+      
+      try {
+        const newSchedule = await createSchedule({
+          doctorId: doctor.$id,
+          weekStart,
+          weekEnd
+        })
+        schedule = newSchedule
+        setSchedules([...schedules, newSchedule])
+      } catch (error) {
+        console.error("Błąd podczas tworzenia harmonogramu:", error)
+        return
+      }
+    }
+    
+    setCurrentSchedule(schedule)
+    
+    // Załaduj istniejące sloty dla tego dnia
+    const existingSlots = specificDate ? getDaySlotsForDate(doctor.$id, specificDate) : getDaySlots(doctor.$id, dayOfWeek)
+    
+    if (existingSlots.length > 0) {
+      const firstSlot = existingSlots[0]
+      if (firstSlot.status === 'vacation') {
+        setScheduleModalType('vacation')
+        setModalTimeSlots([])
+      } else if (firstSlot.status === 'sick_leave') {
+        setScheduleModalType('sick_leave')
+        setModalTimeSlots([])
+      } else {
+        setScheduleModalType('working')
+        setModalTimeSlots(existingSlots.map(slot => {
+          // Parse appointment duration and consultation fee from roomName JSON
+          let appointmentDuration = 60; // Default 60 minutes
+          let consultationFee = 150; // Default fee
+          
+          if (slot.roomName) {
+            try {
+              const roomData = JSON.parse(slot.roomName);
+              appointmentDuration = roomData.appointmentDuration || 60;
+              consultationFee = roomData.consultationFee || (slot.type === 'nfz' ? 0 : 150);
+            } catch (e) {
+              // If roomName is not JSON, use default values
+              appointmentDuration = 60;
+              consultationFee = slot.type === 'nfz' ? 0 : 150;
+            }
+          }
+          
+          return {
+            id: slot.$id,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            type: slot.type,
+            appointmentDuration,
+            consultationFee
+          }
+        }))
+      }
+    } else {
+      setScheduleModalType('working')
+        setModalTimeSlots([{
+          id: 'new-1',
+          startTime: '08:00',
+          endTime: '16:00',
+          type: 'commercial',
+          appointmentDuration: 60,
+          consultationFee: 150
+        }])
+    }
+    
+    setShowScheduleModal(true)
+  }
+
+  const addTimeSlot = () => {
+    const newId = `new-${Date.now()}`
+    setModalTimeSlots([...modalTimeSlots, {
+      id: newId,
+      startTime: '08:00',
+      endTime: '16:00',
+      type: 'commercial',
+      appointmentDuration: 60,
+      consultationFee: 150
+    }])
+  }
+
+  const removeTimeSlot = (slotId: string) => {
+    setModalTimeSlots(modalTimeSlots.filter(slot => slot.id !== slotId))
+  }
+
+  const updateTimeSlot = (slotId: string, field: string, value: string | number) => {
+    setModalTimeSlots(modalTimeSlots.map(slot => {
+      if (slot.id === slotId) {
+        const updatedSlot = { ...slot, [field]: value }
+        // Jeśli zmieniamy typ na NFZ, usuń stawkę (ustaw na 0)
+        if (field === 'type' && value === 'nfz') {
+          updatedSlot.consultationFee = 0
+        }
+        // Jeśli zmieniamy typ na komercyjne i stawka to 0, ustaw domyślną
+        if (field === 'type' && value === 'commercial' && updatedSlot.consultationFee === 0) {
+          updatedSlot.consultationFee = 150
+        }
+        return updatedSlot
+      }
+      return slot
+    }))
+  }
+
+  const { toast } = useToast()
+
+  const saveSchedule = async () => {
+    if (!selectedDoctor || (!selectedDay && !selectedDate) || !currentSchedule) {
+      console.log("Brak wymaganych danych:", {
+        selectedDoctor: selectedDoctor?.name,
+        selectedDay,
+        selectedDate: selectedDate?.toDateString(),
+        currentSchedule: currentSchedule?.$id
+      })
+      return
+    }
+    
+    // Walidacja wyboru gabinetu (nie wymagana dla urlopu i zwolnienia)
+    if (selectedRoom === null && scheduleModalType === 'working') {
+      toast({ variant: "destructive", title: "Brak gabinetu", description: "Wybierz gabinet przed zapisem" })
+      return
+    }
+
+    setIsSavingSchedule(true)
+    try {
+      console.log("Zapisywanie harmonogramu...", {
+        selectedDoctor: selectedDoctor?.name,
+        selectedDate: selectedDate?.toDateString(),
+        selectedDay,
+        scheduleModalType,
+        modalTimeSlots: modalTimeSlots.length
+      })
+
+      // Usuń istniejące sloty dla tego dnia
+      let existingSlots
+      if (selectedDate) {
+        // Dla widoku miesięcznego - usuń sloty dla konkretnej daty (override)
+        const target = new Date(selectedDate).toDateString()
+        existingSlots = scheduleSlots.filter(slot => 
+          slot.scheduleId === currentSchedule.$id && 
+          slot.specificDate && 
+          new Date(slot.specificDate).toDateString() === target
+        )
+        console.log("Usuwanie slotów dla daty:", selectedDate.toDateString(), existingSlots.length)
+      } else {
+        // Dla widoku tygodniowego - usuń sloty dla dnia tygodnia
+        existingSlots = scheduleSlots.filter(slot => 
+        slot.scheduleId === currentSchedule.$id && slot.dayOfWeek === selectedDay
+      )
+        console.log("Usuwanie slotów dla dnia tygodnia:", selectedDay, existingSlots.length)
+      }
+      
+      for (const slot of existingSlots) {
+        await deleteScheduleSlot(slot.$id)
+      }
+
+      // Pobierz dane wybranego gabinetu
+      const selectedRoomData = PREDEFINED_ROOMS.find(r => r.id === selectedRoom)
+      console.log("Dane gabinetu:", {
+        selectedRoom,
+        selectedRoomData,
+        scheduleModalType
+      })
+
+      // Dodaj nowe sloty
+      console.log("Sprawdzanie typu harmonogramu:", {
+        scheduleModalType,
+        modalTimeSlotsLength: modalTimeSlots.length,
+        modalTimeSlots
+      })
+      
+      if (scheduleModalType === 'working' && modalTimeSlots.length > 0) {
+        console.log("Tworzenie slotów pracy:", modalTimeSlots.length)
+        for (const slot of modalTimeSlots) {
+          const toLocalDateKey = (d: Date) => {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+          }
+
+          const slotData = {
+            scheduleId: currentSchedule.$id,
+            doctorId: selectedDoctor.$id,
+            dayOfWeek: selectedDate ? undefined : (selectedDay || undefined),
+            specificDate: selectedDate ? toLocalDateKey(selectedDate) : undefined,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            type: slot.type,
+            status: 'working' as const,
+            roomName: JSON.stringify({
+              name: selectedRoomData?.name || '',
+              appointmentDuration: slot.appointmentDuration || 60,
+              consultationFee: slot.consultationFee || (slot.type === 'nfz' ? 0 : 150)
+            }),
+            roomColor: selectedRoomData?.color || undefined
+          }
+          console.log("Tworzenie slotu:", slotData)
+          await createScheduleSlot(slotData)
+        }
+      } else if (scheduleModalType === 'vacation') {
+        console.log("Tworzenie slotu urlopu", {
+          selectedDate: selectedDate?.toDateString(),
+          selectedDay,
+          currentSchedule: currentSchedule?.$id
+        })
+        // Walidacja urlopu – brak dostępnych dni
+        try {
+          const { getYearlyVacationStats } = await import('../../lib/actions/schedule.actions')
+          const ys = await getYearlyVacationStats(selectedDoctor.$id, (selectedDate || monthCursor).getFullYear())
+          if ((ys?.remainingVacationDays ?? 0) <= 0) {
+            toast({ variant: "destructive", title: "Brak wolnych urlopów", description: "Nie można dodać urlopu" })
+            setIsSavingSchedule(false)
+            return
+          }
+        } catch (e) {
+          console.error('Vacation validation failed:', e)
+        }
+
+        const toLocalDateKey = (d: Date) => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+
+        const slotData = {
+          scheduleId: currentSchedule.$id,
+          doctorId: selectedDoctor.$id,
+          dayOfWeek: selectedDate ? undefined : (selectedDay || undefined),
+          specificDate: selectedDate ? toLocalDateKey(selectedDate) : undefined,
+          startTime: '00:00',
+          endTime: '23:59',
+          type: 'commercial' as const,
+          status: 'vacation' as const,
+          roomName: selectedRoomData?.name || undefined,
+          roomColor: selectedRoomData?.color || undefined
+        }
+        console.log("Tworzenie slotu urlopu:", slotData)
+        await createScheduleSlot(slotData)
+      } else if (scheduleModalType === 'sick_leave') {
+        console.log("Tworzenie slotu zwolnienia", {
+          selectedDate: selectedDate?.toDateString(),
+          selectedDay,
+          currentSchedule: currentSchedule?.$id
+        })
+        const toLocalDateKey = (d: Date) => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+
+        const slotData = {
+          scheduleId: currentSchedule.$id,
+          doctorId: selectedDoctor.$id,
+          dayOfWeek: selectedDate ? undefined : (selectedDay || undefined),
+          specificDate: selectedDate ? toLocalDateKey(selectedDate) : undefined,
+          startTime: '00:00',
+          endTime: '23:59',
+          type: 'commercial' as const,
+          status: 'sick_leave' as const,
+          roomName: selectedRoomData?.name || undefined,
+          roomColor: selectedRoomData?.color || undefined
+        }
+        console.log("Tworzenie slotu zwolnienia:", slotData)
+        await createScheduleSlot(slotData)
+      } else {
+        console.log("Nieznany typ harmonogramu:", scheduleModalType)
+      }
+
+
+      // Po wszystkich operacjach przelicz statystyki w bazie (miesiąc+rok) i odśwież je w UI
+      try {
+        const { calculateAndUpdateStats } = await import('../../lib/actions/schedule.actions')
+        await calculateAndUpdateStats(selectedDoctor.$id, selectedDate || monthCursor)
+        console.log("Statystyki przeliczone pomyślnie")
+      } catch (e) {
+        console.error('Recalculate after save failed:', e)
+      }
+
+      // Odśwież dane kalendarza oraz podsumowanie dla tego lekarza
+      console.log("Odświeżanie danych...")
+      await fetchSchedules()
+      await refreshDoctorMonthlyStats(selectedDoctor.$id)
+      console.log("Dane odświeżone pomyślnie")
+      
+      setShowScheduleModal(false)
+      toast({ variant: "success", title: "Zapisano", description: "Zmiany w grafiku zostały zapisane" })
+    } catch (error) {
+      console.error("Błąd podczas zapisywania harmonogramu:", error)
+      toast({ variant: "destructive", title: "Błąd", description: "Nie udało się zapisać zmian w grafiku" })
+    } finally {
+      setIsSavingSchedule(false)
+    }
+  }
+
+  const deleteSchedule = async () => {
+    if (!selectedDoctor || (!selectedDay && !selectedDate) || !currentSchedule) return
+
+    try {
+      // Usuń wszystkie sloty dla tego dnia
+      let existingSlots
+      if (selectedDate) {
+        // Dla widoku miesięcznego - usuń sloty dla konkretnej daty (override)
+        existingSlots = scheduleSlots.filter(slot => 
+          slot.scheduleId === currentSchedule.$id && 
+          slot.specificDate && 
+          new Date(slot.specificDate).toDateString() === selectedDate.toDateString()
+        )
+      } else {
+        // Dla widoku tygodniowego - usuń sloty dla dnia tygodnia
+        existingSlots = scheduleSlots.filter(slot => 
+        slot.scheduleId === currentSchedule.$id && slot.dayOfWeek === selectedDay
+      )
+      }
+      
+      for (const slot of existingSlots) {
+        await deleteScheduleSlot(slot.$id)
+      }
+
+      // Po usunięciu slotów przelicz statystyki (miesiąc+rok) i odśwież UI
+      try {
+        const { calculateAndUpdateStats } = await import('../../lib/actions/schedule.actions')
+        await calculateAndUpdateStats(selectedDoctor.$id, selectedDate || monthCursor)
+      } catch (e) {
+        console.error('Recalculate after delete failed:', e)
+      }
+
+      // Odśwież dane kalendarza i wiersz podsumowania
+      await fetchSchedules()
+      await refreshDoctorMonthlyStats(selectedDoctor.$id)
+      
+      setShowScheduleModal(false)
+      console.log("Harmonogram usunięty pomyślnie")
+    } catch (error) {
+      console.error("Błąd podczas usuwania harmonogramu:", error)
+      toast({ variant: "destructive", title: "Błąd", description: "Nie udało się usunąć dnia z grafiku" })
+    }
+  }
+
 
   // Funkcja wyszukiwania
   const handleSearch = (query: string) => {
@@ -607,8 +1257,11 @@ export function DesignaliCreative() {
     if (!selectedPatient) return
 
     try {
+      console.log("Zapisywanie pola:", field, "Wartość:", editValue)
+      
       // Aktualizuj pacjenta w bazie danych
-      await updatePatient(selectedPatient.$id, { [field]: editValue })
+      const result = await updatePatient(selectedPatient.$id, { [field]: editValue })
+      console.log("Wynik updatePatient:", result)
       
       // Aktualizuj lokalny stan
       setSelectedPatient({
@@ -630,8 +1283,34 @@ export function DesignaliCreative() {
 
       setEditingField(null)
       setEditValue("")
+      
+      console.log("Pole zapisane pomyślnie")
     } catch (error) {
       console.error("Błąd podczas aktualizacji pacjenta:", error)
+    }
+  }
+
+  const handleDeletePatient = async () => {
+    if (!selectedPatient) return
+
+    try {
+      console.log("Usuwanie pacjenta:", selectedPatient.name)
+      
+      // Usuń pacjenta z bazy danych
+      await deletePatient(selectedPatient.$id)
+      
+      // Usuń z lokalnych list
+      setPatients(patients.filter(p => p.$id !== selectedPatient.$id))
+      setFilteredPatients(filteredPatients.filter(p => p.$id !== selectedPatient.$id))
+      
+      // Zamknij modal
+      setShowPatientModal(false)
+      setSelectedPatient(null)
+      
+      console.log("Pacjent usunięty pomyślnie")
+    } catch (error) {
+      console.error("Błąd podczas usuwania pacjenta:", error)
+      toast({ variant: "destructive", title: "Błąd", description: "Nie udało się usunąć pacjenta" })
     }
   }
 
@@ -661,6 +1340,14 @@ export function DesignaliCreative() {
                 <select
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      saveField(field)
+                    } else if (e.key === 'Escape') {
+                      cancelEditing()
+                    }
+                  }}
+                  autoFocus
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   {options.map((option) => (
@@ -674,6 +1361,14 @@ export function DesignaliCreative() {
                   type={type}
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      saveField(field)
+                    } else if (e.key === 'Escape') {
+                      cancelEditing()
+                    }
+                  }}
+                  autoFocus
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               )}
@@ -714,15 +1409,103 @@ export function DesignaliCreative() {
   useEffect(() => {
     const fetchAllData = async () => {
       setLoading(true)
+      try {
       await Promise.all([
         fetchAppointments(),
         fetchPatients(),
-        fetchDoctors()
+        fetchDoctors(),
+        fetchSchedules()
       ])
+        const [s, r, t] = await Promise.all([
+          getDashboardStats().catch(() => null),
+          getRevenueData().catch(() => []),
+          getTasks().catch(() => [])
+        ])
+        if (s) setDashboardStats(s)
+        if (Array.isArray(r)) setRevenueData(r)
+        if (Array.isArray(t)) setTasks(t)
+      } finally {
       setLoading(false)
+      }
     }
     fetchAllData()
   }, [])
+
+  // Wczytaj ustawienia timera z localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('admin_timer_minutes')
+      if (saved) {
+        const v = parseInt(saved)
+        if (!isNaN(v) && v > 0 && v <= 120) setSessionMinutes(v)
+      }
+    } catch {}
+  }, [])
+
+  // Odśwież harmonogramy przy zmianie tygodnia
+  useEffect(() => {
+    if (schedules.length > 0) {
+      fetchSchedules()
+    }
+  }, [currentWeek])
+
+  // Inicjalizuj harmonogram miesięczny gdy zmienia się miesiąc
+  useEffect(() => {
+    if (schedules.length > 0 && doctors.length > 0) {
+      // Dodaj debounce, aby uniknąć zbyt częstych wywołań
+      const timeoutId = setTimeout(() => {
+        initializeMonthlySchedule()
+      }, 500)
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [monthCursor])
+
+  // Ładuj statystyki miesięczne
+  useEffect(() => {
+    const loadMonthlyStats = async () => {
+      if (doctors.length === 0) return
+
+      try {
+        // Pobierz statystyki równolegle dla wszystkich lekarzy – duża oszczędność czasu
+        const results = await Promise.all(
+          doctors.map(async (doctor) => {
+            try {
+              const doctorStats = await getMonthlyStats(doctor.$id, monthCursor)
+              return [doctor.$id, doctorStats] as const
+            } catch (error) {
+              console.error(`Error loading stats for doctor ${doctor.$id}:`, error)
+              return [doctor.$id, {
+                totalHours: 0,
+                vacationDays: 0,
+                sickLeaveDays: 0,
+                workingDays: 0,
+                remainingVacationDays: 21
+              }] as const
+            }
+          })
+        )
+
+        const stats: {[key: string]: any} = {}
+        results.forEach(([id, value]) => { stats[id] = value })
+        setMonthlyStats(stats)
+      } catch (err) {
+        console.error('Error loading monthly stats in parallel:', err)
+      }
+    }
+
+    loadMonthlyStats()
+  }, [doctors, monthCursor])
+
+  // Funkcja do odświeżenia statystyk jednego lekarza po zmianie w grafiku
+  const refreshDoctorMonthlyStats = async (doctorId: string) => {
+    try {
+      const stats = await getMonthlyStats(doctorId, monthCursor)
+      setMonthlyStats(prev => ({ ...prev, [doctorId]: stats }))
+    } catch (e) {
+      console.error('Error refreshing stats for doctor', doctorId, e)
+    }
+  }
 
   // Funkcja do generowania kalendarza na podstawie danych z API
   const generateCalendarData = () => {
@@ -803,13 +1586,39 @@ export function DesignaliCreative() {
   const totalPages = Math.ceil(totalItems / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentAppointments = appointments?.documents?.slice(startIndex, endIndex) || []
+  const currentAppointments = (appointments?.documents || [])
+    .filter((visit: any) => {
+      // Pokaż tylko oczekujące/potwierdzone, ukryj odbyte i anulowane
+      const statuses = Array.isArray(visit.status)
+        ? visit.status
+        : (visit.status || '').split(',').map((s: string) => s.trim())
+      const isCompleted = visit.isCompleted || statuses.includes('completed')
+      const isCancelled = statuses.includes('cancelled')
+      const isAwaiting = statuses.includes('awaiting') || statuses.includes('pending')
+      const isAccepted = statuses.includes('accepted')
+      return !isCompleted && !isCancelled && (isAwaiting || isAccepted)
+    })
+    .sort((a: any, b: any) => new Date(a.schedule).getTime() - new Date(b.schedule).getTime())
+    .slice(startIndex, endIndex)
 
   const [progress, setProgress] = useState(0)
   const [notifications, setNotifications] = useState(5)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({})
+
+  // Pulpit dane
+  const [stats, setStats] = useState({
+    todayAppointments: 0,
+    todayScheduled: 0,
+    totalAppointments30Days: 0,
+    cancelledAppointments30Days: 0,
+    completedAppointments30Days: 0,
+    newPatients30Days: 0,
+  })
+  const [revenue, setRevenue] = useState({ totalRevenue: 0, previousRevenue: 0, revenueGrowth: 0, appointmentsCount: 0 })
+  const [upcoming, setUpcoming] = useState<any[]>([])
+  const [tasksList, setTasksList] = useState<any[]>([])
 
   // Simulate progress loading
   useEffect(() => {
@@ -970,11 +1779,6 @@ export function DesignaliCreative() {
                 <Settings className="h-5 w-5" />
                 <span>Ustawienia</span>
               </button>
-              <button className="bg-red-700 hover:bg-red-600 text-white rounded-2xl text-center flex w-full items-center justify-center rounded-2xl px-3 py-2 text-sm font-medium hover:bg-muted">
-                <div className="flex items-center gap-3">
-                  <span>Wyloguj</span>
-                </div>
-              </button>
             </div>
           </div>
         </div>
@@ -991,6 +1795,38 @@ export function DesignaliCreative() {
           </Button>
           <div className="flex flex-1 items-center justify-between">
             <h1 className="text-xl font-semibold"></h1>
+            
+            {/* Czasomierz bezpieczeństwa w nagłówku */}
+            <div className="flex items-center gap-3 mr-4">
+              <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-lg">
+                <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`}></div>
+                <span className="text-xs font-medium text-gray-600">
+                  {isActive ? 'Aktywny' : 'Nieaktywny'}
+                </span>
+                <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-1000 ${
+                      timeRemaining > 180 ? 'bg-green-500' : 
+                      timeRemaining > 60 ? 'bg-yellow-500' : 'bg-red-500'
+                    }`}
+                    style={{ 
+                      width: `${((300 - timeRemaining) / 300) * 100}%` 
+                    }}
+                  ></div>
+                </div>
+                <span className="text-xs font-mono text-gray-600 min-w-[35px]">
+                  {formattedTime}
+                </span>
+                <button
+                  className="ml-2 p-1 rounded-md hover:bg-gray-100"
+                  aria-label="Ustawienia czasomierza"
+                  onClick={() => setIsTimerSettingsOpen(true)}
+                >
+                  <Settings className="h-4 w-4 text-gray-600" />
+                </button>
+              </div>
+            </div>
+            
             <div className="flex items-center gap-3">
 
               <TooltipProvider>
@@ -1035,6 +1871,446 @@ export function DesignaliCreative() {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
+                <TabsContent value="dashboard" className="space-y-8 mt-0">
+                  <section>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h1 className="sp-h1 text-gray-900">Pulpit</h1>
+                        <p className="sp-desc">Szybki przegląd najważniejszych informacji</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600">Dzisiaj, {new Date().toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}</p>
+                        <p className="text-sm text-gray-600">8:00 - 16:00</p>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Karty statystyk */}
+                  <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <Card className="bg-gradient-to-b from-blue-500/20 to-transparent border border-gray-200  transition-all duration-300 cursor-pointer group">
+                      <CardContent className="p-6 h-48 flex flex-col justify-between">
+                        <div className="flex items-center justify-center w-12 h-12 bg-blue-500 rounded-xl mb-4">
+                          <Calendar className="h-6 w-6 text-white" />
+                            </div>
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div>
+                            <h3 className="sp-body text-gray-600 mb-2">Dzisiejsze wizyty</h3>
+                            <p className="text-3xl font-bold text-gray-900 mb-3">{dashboardStats?.todayAppointments || 0}</p>
+                            <div className="flex items-center text-sm">
+                              <span className="text-green-600">+12%</span>
+                              <span className="text-gray-500 ml-1">vs wczoraj</span>
+                            </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                    <Card className="bg-gradient-to-b from-green-500/20 to-transparent border border-gray-200 transition-all duration-300 cursor-pointer group">
+                      <CardContent className="p-6 h-48 flex flex-col justify-between">
+                        <div className="flex items-center justify-center w-12 h-12 bg-green-500 rounded-xl mb-4">
+                          <Users className="h-6 w-6 text-white" />
+                            </div>
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div>
+                            <h3 className="sp-body text-gray-600 mb-2">Aktywni pacjenci</h3>
+                            <p className="text-3xl font-bold text-gray-900 mb-3">{dashboardStats?.activePatients || 0}</p>
+                            <div className="flex items-center text-sm">
+                              <span className="text-green-600">+8%</span>
+                              <span className="text-gray-500 ml-1">vs miesiąc</span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                    <Card className="bg-gradient-to-b from-purple-500/20 to-transparent border border-gray-200 transition-all duration-300 cursor-pointer group">
+                      <CardContent className="p-6 h-48 flex flex-col justify-between">
+                        <div className="flex items-center justify-center w-12 h-12 bg-purple-500 rounded-xl mb-4">
+                          <CreditCard className="h-6 w-6 text-white" />
+                            </div>
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div>
+                            <h3 className="sp-body text-gray-600 mb-2">Przychód (30 dni)</h3>
+                            <p className="text-3xl font-bold text-gray-900 mb-3">{dashboardStats?.monthlyRevenue || 0} zł</p>
+                            <div className="flex items-center text-sm">
+                              <span className="text-green-600">+15%</span>
+                              <span className="text-gray-500 ml-1">vs poprzedni</span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                    <Card className="bg-gradient-to-b from-orange-500/20 to-transparent border border-gray-200 transition-all duration-300 cursor-pointer group">
+                      <CardContent className="p-6 h-48 flex flex-col justify-between">
+                        <div className="flex items-center justify-center w-12 h-12 bg-orange-500 rounded-xl mb-4">
+                          <CheckCircle className="h-6 w-6 text-white" />
+                            </div>
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div>
+                            <h3 className="sp-body text-gray-600 mb-2">Ukończone zadania</h3>
+                            <p className="text-3xl font-bold text-gray-900 mb-3">{tasks.filter(t => t.completed).length}</p>
+                            <div className="flex items-center text-sm">
+                              <span className="text-green-600">+5</span>
+                              <span className="text-gray-500 ml-1">w tym tygodniu</span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                  </section>
+
+                  <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Lewa strona - 2 kolumny */}
+                    <div className="lg:col-span-2 space-y-6">
+                      {/* Wykres przychodu */}
+                      <Card>
+                        <CardHeader className="pb-4">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="sp-h3">Przychód</CardTitle>
+                            <div className="flex items-center gap-2">
+                              <Button variant="outline" size="sm" className="text-sm">
+                                Miesiąc
+                                <ChevronDown className="h-4 w-4 ml-1" />
+                              </Button>
+                            </div>
+                              </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="h-64 w-full">
+                            {revenueData.length > 0 ? (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={revenueData}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                  <XAxis 
+                                    dataKey="date" 
+                                    stroke="#666"
+                                    fontSize={12}
+                                    tickLine={false}
+                                    axisLine={false}
+                                  />
+                                  <YAxis 
+                                    stroke="#666"
+                                    fontSize={12}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickFormatter={(value) => `${value}zł`}
+                                  />
+                                  <Tooltip />
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="amount" 
+                                    stroke="#3B82F6" 
+                                    strokeWidth={3}
+                                    dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
+                                    activeDot={{ r: 6, stroke: '#3B82F6', strokeWidth: 2 }}
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            ) : (
+                              <div className="h-full w-full bg-gray-50 rounded-xl flex flex-col items-center justify-center p-8">
+                                <div className="text-center">
+                                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4 mx-auto">
+                                    <Crown className="h-8 w-8 text-white" />
+                                  </div>
+                                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Odblokuj w subskrypcji Pro</h3>
+                                  <p className="text-gray-600 text-sm mb-4">Uzyskaj dostęp do szczegółowych analiz przychodu i raportów</p>
+                                  <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white">
+                                    <Crown className="h-4 w-4 mr-2" />
+                                    Upgrade do Pro
+                                  </Button>
+                                </div>
+                            </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Lista zadań */}
+                      <Card>
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center justify-between">
+                            <CardTitle className="sp-h3">Twoja lista zadań</CardTitle>
+                            <Button size="sm" className="bg-primary hover:bg-midnight-blue text-white">
+                              <Plus className="h-4 w-4 mr-1" />
+                              Dodaj zadanie
+                            </Button>
+                              </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {tasks.slice(0, 5).map((task, index) => (
+                              <div key={task.$id || index} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={task.completed}
+                                  onChange={() => toggleTaskCompletion(task.$id)}
+                                  className="w-4 h-4 text-cornflower-blue border-gray-300 rounded focus:ring-cornflower-blue"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-medium ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                                    {task.title}
+                                  </p>
+                                  {task.description && (
+                                    <p className="text-xs text-gray-500 truncate">{task.description}</p>
+                                  )}
+                                  </div>
+                                {task.priority && (
+                                  <span className={`px-2 py-1 text-xs rounded-full ${
+                                    task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                    task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-green-100 text-green-800'
+                                  }`}>
+                                    {task.priority === 'high' ? 'Wysoki' : task.priority === 'medium' ? 'Średni' : 'Niski'}
+                                  </span>
+                                )}
+                                </div>
+                            ))}
+                            {tasks.length === 0 && (
+                              <div className="text-center py-8">
+                                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4 mx-auto">
+                                  <Crown className="h-8 w-8 text-white" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Odblokuj w subskrypcji Pro</h3>
+                                <p className="text-gray-600 text-sm mb-4">Uzyskaj dostęp do zaawansowanego zarządzania zadaniami</p>
+                                <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white">
+                                  <Crown className="h-4 w-4 mr-2" />
+                                  Upgrade do Pro
+                                </Button>
+                                </div>
+                            )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Prawa strona - 1 kolumna (nadchodzące wizyty) */}
+                    <div className="lg:col-span-1">
+                      <Card className="h-full">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center justify-between">
+                            <CardTitle className="sp-h3">Nadchodzące wizyty</CardTitle>
+                            <Button size="sm" className="bg-primary hover:bg-midnight-blue text-white" onClick={() => setActiveTab("wizyty")}>
+                              <Plus className="h-4 w-4 mr-1" />
+                              Nowa wizyta
+                              </Button>
+                            </div>
+                          </CardHeader>
+                        <CardContent className="flex flex-col h-full">
+                          <div className="flex flex-col h-full space-y-4">
+                            {/* Kalendarz z listą wizyt */}
+                            <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
+                              {appointments?.documents && appointments.documents.length > 0 ? (
+                                appointments.documents
+                                  .filter((apt: any) => {
+                                    const d = new Date(apt.schedule)
+                                    const isFuture = d.getTime() >= Date.now()
+                                    return isFuture && !isAppointmentCancelled(apt) && !isAppointmentCompleted(apt)
+                                  })
+                                  .sort((a: any, b: any) => new Date(a.schedule).getTime() - new Date(b.schedule).getTime())
+                                  .map((appointment: any, index: number) => {
+                                    const appointmentDate = new Date(appointment.schedule);
+                                    const isToday = appointmentDate.toDateString() === new Date().toDateString();
+                                    const isFirst = index === 0;
+                                    
+                                    return (
+                                      <div key={appointment.$id || index} className="relative">
+                                        {/* Karta wizyty */}
+                                        <div 
+                                          className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-md ${
+                                            isFirst ? 'bg-primary/5 border-primary/20' : 'bg-white border-gray-200 hover:border-gray-300'
+                                          }`}
+                                          onClick={() => setExpandedAppointment(expandedAppointment === appointment.$id ? null : appointment.$id)}
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-4">
+                                              {/* Avatar pacjenta */}
+                                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-medium ${
+                                                isFirst ? 'bg-primary' : 'bg-gray-400'
+                                              }`}>
+                                                {(appointment.patient?.name || 'P').charAt(0).toUpperCase()}
+                                              </div>
+                                              
+                                              {/* Informacje o wizycie */}
+                                              <div className="flex-1">
+                                              <div className="flex items-center space-x-2 mb-1">
+                                                  <span className="text-sm font-medium text-gray-900">
+                                                    {appointment.patient?.name || 'Pacjent'}
+                                                  </span>
+                                                  {isToday && (
+                                                    <span className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-full">
+                                                      Dzisiaj
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              <div className="grid grid-cols-2 gap-3 mt-1 text-sm">
+                                                <span className="text-gray-500">
+                                                  {appointmentDate.toLocaleDateString('pl-PL')}
+                                                </span>
+                                                <span className="text-gray-500">
+                                                  {appointmentDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                            
+                                            {/* Chevron */}
+                                            <div className="flex items-center space-x-2">
+                                              <StatusBadge status={appointment.status || 'pending'} />
+                                              {expandedAppointment === appointment.$id ? (
+                                                <ChevronUp className="h-4 w-4 text-gray-400" />
+                                              ) : (
+                                                <ChevronDown className="h-4 w-4 text-gray-400" />
+                                              )}
+                                            </div>
+                                          </div>
+                                          
+                                          {/* Rozsuwana karta z szczegółami */}
+                                          {expandedAppointment === appointment.$id && (
+                                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="space-y-3">
+                                                  <div className="flex justify-between">
+                                                    <span className="text-sm text-gray-500">Pacjent:</span>
+                                                    <span className="text-sm font-medium text-gray-900">
+                                                      {appointment.patient?.name || 'Pacjent'}
+                                                    </span>
+                                                  </div>
+                                                  <div className="flex justify-between">
+                                                    <span className="text-sm text-gray-500">Godzina:</span>
+                                                    <span className="text-sm font-medium text-gray-900">
+                                                      {appointmentDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                  </div>
+                                                  <div className="flex justify-between">
+                                                    <span className="text-sm text-gray-500">Data:</span>
+                                                    <span className="text-sm font-medium text-gray-900">
+                                                      {appointmentDate.toLocaleDateString('pl-PL')}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                                <div className="space-y-3">
+                                                  <div className="flex justify-between">
+                                                    <span className="text-sm text-gray-500">Gabinet:</span>
+                                                    <span className="text-sm font-medium text-gray-900">
+                                                      {appointment.roomName || appointment.room || 'Brak'}
+                                                    </span>
+                                                  </div>
+                                                  <div className="flex justify-between">
+                                                    <span className="text-sm text-gray-500">Lekarz:</span>
+                                                    <span className="text-sm font-medium text-gray-900">
+                                                      {appointment.primaryPhysician || 'Lekarz'}
+                                                    </span>
+                                                  </div>
+                                                  <div className="flex justify-between">
+                                                    <span className="text-sm text-gray-500">Status:</span>
+                                                    <span className="text-sm font-medium text-gray-900">
+                                                      {Array.isArray(appointment.status)
+                                                        ? appointment.status.join(', ')
+                                                        : (appointment.status || 'awaiting')}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              
+                                              {appointment.note && (
+                                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                                  <span className="text-sm text-gray-500">Notatka:</span>
+                                                  <p className="text-sm text-gray-900 mt-1">{appointment.note}</p>
+                                                </div>
+                                              )}
+                                              
+                                              {/* Przyciski akcji */}
+                                              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                                                <div className="flex space-x-2">
+                                                  <button className="w-8 h-8 bg-gray-100 hover:bg-red-50 rounded-lg flex items-center justify-center transition-colors">
+                                                    <Trash className="h-4 w-4 text-red-500" />
+                                                  </button>
+                                                  <button className="w-8 h-8 bg-gray-100 hover:bg-blue-50 rounded-lg flex items-center justify-center transition-colors">
+                                                    <Users className="h-4 w-4 text-gray-600" />
+                                                  </button>
+                                                  <button className="w-8 h-8 bg-gray-100 hover:bg-blue-50 rounded-lg flex items-center justify-center transition-colors">
+                                                    <Edit className="h-4 w-4 text-gray-600" />
+                                                  </button>
+                                                </div>
+                                                {(() => {
+                                                  let statuses: string[]
+                                                  if (Array.isArray(appointment.status)) {
+                                                    statuses = appointment.status
+                                                  } else {
+                                                    statuses = (appointment.status || '').split(',').map((s: string) => s.trim())
+                                                  }
+                                                  const hasAwaiting = statuses.includes('awaiting') || statuses.includes('pending')
+                                                  const hasAccepted = statuses.includes('accepted')
+
+                                                  if (hasAccepted) {
+                                                    return (
+                                                      <button
+                                                        onClick={async () => {
+                                                          try {
+                                                            await markAppointmentAsCompleted(appointment.$id)
+                                                            fetchAppointments()
+                                                          } catch (e) {
+                                                            console.error('Mark completed error', e)
+                                                          }
+                                                        }}
+                                                        className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"
+                                                      >
+                                                        Oznacz jako odbytą
+                                                      </button>
+                                                    )
+                                                  }
+                                                  if (hasAwaiting) {
+                                                    return (
+                                                      <AppointmentModal
+                                                        patientId={appointment.patient.$id}
+                                                        userId={appointment.userId}
+                                                        appointment={appointment}
+                                                        type="schedule"
+                                                        title="Potwierdź wizytę"
+                                                        description="Potwierdź termin i szczegóły wizyty."
+                                                        isAdminModal={true}
+                                                        trigger={<Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">Potwierdź wizytę</Button>}
+                                                      />
+                                                    )
+                                                  }
+                                                  return null
+                                                })()}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })
+                              ) : (
+                                <div className="text-center py-12 text-gray-500">
+                                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                                    <Calendar className="h-8 w-8 text-gray-400" />
+                                  </div>
+                                  <p className="text-lg font-medium mb-2">Brak nadchodzących wizyt</p>
+                                  <p className="text-sm">Kliknij "Nowa wizyta" aby dodać pierwszą wizytę</p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Footer z przyciskiem Pokaż wszystkie */}
+                            <div className="flex justify-end items-center mt-auto pt-4 border-t border-gray-100">
+                              <button className="text-cornflower-blue hover:text-midnight-blue text-sm font-medium mr-2">
+                                Pokaż wszystkie
+                              </button>
+                              <button className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors">
+                                <ChevronRight className="h-4 w-4 text-gray-600" />
+                              </button>
+                            </div>
+                            
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </section>
+                </TabsContent>
+
                 <TabsContent value="wizyty" className="space-y-8 mt-0">
                   <section>
                     <motion.div
@@ -1057,7 +2333,7 @@ export function DesignaliCreative() {
                             </div>
                           </div>
                           <div className="flex gap-4">
-                            <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl px-6">
+                            <Button className="text-white rounded-2xl px-6">
                               Umów wizytę
                             </Button>
                             <Button variant="outline" className="rounded-2xl px-6 bg-transparent">
@@ -1076,62 +2352,71 @@ export function DesignaliCreative() {
                       transition={{ duration: 0.5 }}
                       className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5"
                     >
-                      <Card className="rounded-3xl bg-white border-gray-200 p-6">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-2xl bg-orange-100 p-3">
-                            <Calendar className="h-6 w-6 text-orange-600" />
-                          </div>
-                          <div>
-                            <div className="text-2xl font-bold text-gray-900">{appointments?.scheduledCount || 0}</div>
-                            <div className="text-sm text-gray-600">Przełożone wizyty</div>
-                          </div>
-                        </div>
-                      </Card>
-
-                      <Card className="rounded-3xl bg-white border-gray-200 p-6">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-2xl bg-green-100 p-3">
-                            <Check className="h-6 w-6 text-green-600" />
-                          </div>
-                          <div>
-                            <div className="text-2xl font-bold text-gray-900">{appointments?.acceptedCount || 0}</div>
-                            <div className="text-sm text-gray-600">Potwierdzone wizyty</div>
-                          </div>
-                        </div>
-                      </Card>
-
+                      {/* Wizyty dzisiaj */}
                       <Card className="rounded-3xl bg-white border-gray-200 p-6">
                         <div className="flex items-center gap-3">
                           <div className="rounded-2xl bg-blue-100 p-3">
-                            <Clock className="h-6 w-6 text-blue-600" />
+                            <Calendar className="h-6 w-6 text-blue-600" />
                           </div>
                           <div>
-                            <div className="text-2xl font-bold text-gray-900">{appointments?.completedCount || 0}</div>
-                            <div className="text-sm text-gray-600">Odbyte wizyty</div>
+                            <div className="text-sm text-gray-600 mb-1">Wizyty dzisiaj</div>
+                            <div className="text-2xl font-bold text-gray-900">0 / 15</div>
+                            <div className="text-sm text-red-500 mt-1">0% Nowe wizyty czekają! 😊</div>
                           </div>
                         </div>
                       </Card>
 
+                      {/* Wszystkie wizyty */}
                       <Card className="rounded-3xl bg-white border-gray-200 p-6">
                         <div className="flex items-center gap-3">
-                          <div className="rounded-2xl bg-indigo-100 p-3">
-                            <Timer className="h-6 w-6 text-indigo-600" />
+                          <div className="rounded-2xl bg-purple-100 p-3">
+                            <FileText className="h-6 w-6 text-purple-600" />
                           </div>
                           <div>
-                            <div className="text-2xl font-bold text-gray-900">{appointments?.awaitingCount || 0}</div>
-                            <div className="text-sm text-gray-600">Oczekujące wizyty</div>
+                            <div className="text-sm text-gray-600 mb-1">Wszystkie wizyty <span className="text-gray-500">(30 dni)</span></div>
+                            <div className="text-2xl font-bold text-gray-900">66</div>
+                            <div className="text-sm text-green-500 mt-1">⬆️ 20% vs poprzednie 30 dni</div>
                           </div>
                         </div>
                       </Card>
 
+                      {/* Odwołane wizyty */}
                       <Card className="rounded-3xl bg-white border-gray-200 p-6">
                         <div className="flex items-center gap-3">
                           <div className="rounded-2xl bg-red-100 p-3">
-                            <AlertTriangle className="h-6 w-6 text-red-600" />
+                            <X className="h-6 w-6 text-red-600" />
                           </div>
                           <div>
-                            <div className="text-2xl font-bold text-gray-900">{appointments?.cancelledCount || 0}</div>
-                            <div className="text-sm text-gray-600">Anulowane wizyty</div>
+                            <div className="text-sm text-gray-600 mb-1">Odwołane wizyty <span className="text-gray-500">(30 dni)</span></div>
+                            <div className="text-2xl font-bold text-gray-900">4</div>
+                          </div>
+                        </div>
+                      </Card>
+
+                      {/* Uzupełnione karty */}
+                      <Card className="rounded-3xl bg-white border-gray-200 p-6">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-2xl bg-orange-100 p-3">
+                            <Edit className="h-6 w-6 text-orange-600" />
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-600 mb-1">Uzupełnione karty</div>
+                            <div className="text-2xl font-bold text-gray-900">28 / 63</div>
+                            <div className="text-sm text-red-500 mt-1">44% Dasz radę! 🧑‍💻</div>
+                          </div>
+                        </div>
+                      </Card>
+
+                      {/* Nowi pacjenci */}
+                      <Card className="rounded-3xl bg-white border-gray-200 p-6">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-2xl bg-green-100 p-3">
+                            <Users className="h-6 w-6 text-green-600" />
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-600 mb-1">Nowi pacjenci <span className="text-gray-500">(30 dni)</span></div>
+                            <div className="text-2xl font-bold text-gray-900">8</div>
+                            <div className="text-sm text-green-500 mt-1">⬆️ 33% vs poprzednie 30 dni</div>
                           </div>
                         </div>
                       </Card>
@@ -1140,7 +2425,7 @@ export function DesignaliCreative() {
 
                   <section className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-2xl font-semibold">Ten tydzień</h2>
+                      <h2 className="text-2xl font-semibold">{calendarExpanded ? 'Pełen miesiąc' : 'Ten tydzień'}</h2>
                       <Button 
                         variant="ghost" 
                         className="rounded-2xl flex items-center gap-2"
@@ -1152,425 +2437,260 @@ export function DesignaliCreative() {
                     </div>
 
                     <Card className="rounded-3xl bg-white border-gray-200 p-6">
+                      {/* Pasek nawigacji miesiąca + wybór miesiąca/roku (tylko w trybie miesiąca) */}
+                      {calendarExpanded && (
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1))}>
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <div className="text-sm font-medium text-gray-900 min-w-[160px] text-center">
+                              {monthCursor.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1))}>
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={monthCursor.getMonth()}
+                              onChange={(e) => setMonthCursor(new Date(monthCursor.getFullYear(), parseInt(e.target.value), 1))}
+                              className="px-3 py-1 border border-gray-200 rounded-lg text-sm"
+                            >
+                              {Array.from({ length: 12 }, (_, i) => (
+                                <option key={i} value={i}>{new Date(2000, i, 1).toLocaleDateString('pl-PL', { month: 'long' })}</option>
+                              ))}
+                            </select>
+                            <select
+                              value={monthCursor.getFullYear()}
+                              onChange={(e) => setMonthCursor(new Date(parseInt(e.target.value), monthCursor.getMonth(), 1))}
+                              className="px-3 py-1 border border-gray-200 rounded-lg text-sm"
+                            >
+                              {Array.from({ length: 11 }, (_, i) => 2019 + i).map((y) => (
+                                <option key={y} value={y}>{y}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
                       {calendarExpanded ? (
                         // Pełny kalendarz
                         <div className="space-y-4">
-                          <div className="grid grid-cols-7 gap-4 mb-4">
-                            {["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "Sb"].map((day) => (
-                              <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
-                                {day}
-                              </div>
-                            ))}
+                          {/* Pasek dni tygodnia spójny z widokiem tygodniowym */}
+                          <div className="bg-gray-100 rounded-lg grid grid-cols-7 gap-4 mb-4">
+                            {(() => {
+                              const labels = ["Pn","Wt","Śr","Cz","Pt","Sb","Nd"]
+                              const todayIdx = (new Date().getDay() + 6) % 7
+                              return labels.map((d, i) => (
+                                <div key={d} className={`text-center text-sm font-medium py-2 rounded-[20px] ${i === todayIdx ? 'bg-primary text-white' : 'text-gray-900'}`}>{d}</div>
+                              ))
+                            })()}
                           </div>
                           <div className="grid grid-cols-7 gap-4">
-                            {/* Generuj dni miesiąca */}
-                            {Array.from({ length: 35 }, (_, i) => {
-                              const dayNumber = i - 6; // Zacznij od -6 aby pokazać poprzedni miesiąc
-                              const currentDate = new Date();
-                              const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-                              const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-                              const startDate = new Date(firstDay);
-                              startDate.setDate(startDate.getDate() + dayNumber);
-                              
-                              const isCurrentMonth = startDate.getMonth() === currentDate.getMonth();
-                              const isToday = startDate.toDateString() === currentDate.toDateString();
-                              const dayOfMonth = startDate.getDate();
+                            {/* Generuj siatkę tygodni na wybrany miesiąc z wizytami */}
+                            {(() => {
+                              const weeks = getWeeksOfMonth(monthCursor)
+                              const todayStr = new Date().toDateString()
+                              return weeks.flatMap((weekStart, idx) => {
+                                return Array.from({ length: 7 }, (_, di) => {
+                                  const cellDate = new Date(weekStart)
+                                  cellDate.setDate(weekStart.getDate() + di)
+                                  const isCurrentMonth = cellDate.getMonth() === monthCursor.getMonth()
+                                  const isToday = cellDate.toDateString() === todayStr
+                                  const dayNumber = cellDate.getDate()
+
+                                  // Wizyty dla danej daty
+                                  const dayAppointments = (appointments?.documents || []).filter((apt: any) => {
+                                    const d = new Date(apt.schedule)
+                                    return d.getFullYear() === cellDate.getFullYear() && d.getMonth() === cellDate.getMonth() && d.getDate() === cellDate.getDate()
+                                  }).slice(0, 3) // pokaż max 3
                               
                               return (
-                                <div 
-                                  key={i}
-                                  className={`min-h-[120px] p-2 ${
-                                    isToday ? 'border-2 border-blue-400 rounded-lg bg-blue-50' : ''
-                                  }`}
-                                >
-                                  <div className={`text-lg font-medium mb-2 ${
-                                    isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
-                                  }`}>
-                                    {dayOfMonth}
-                                  </div>
-                                  <div className="space-y-1">
-                                    {calendarData[dayOfMonth]?.map((appointment: any, index: number) => {
-                                      const date = new Date(appointment.schedule);
-                                      const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                                      const isCancelled = isAppointmentCancelled(appointment);
-                                      const isCompleted = isAppointmentCompleted(appointment);
+                                    <div key={`${idx}-${di}`} className={`min-h-[120px] p-2 rounded-[12px] ${isToday ? 'border-2 border-primary bg-white' : 'bg-gray-50'}`}>
+                                      <div className={`text-lg font-medium mb-2 ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}`}>{dayNumber}</div>
+                                      <div className="space-y-2">
+                                        {dayAppointments.map((apt: any, i2: number) => {
+                                          const d = new Date(apt.schedule)
+                                          const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+                                          const isCancelled = isAppointmentCancelled(apt)
+                                          const isCompleted = isAppointmentCompleted(apt)
+                                          const color = apt.roomColor ? getColorValue(apt.roomColor) : getAppointmentColor(apt)
+                                          const initials = (apt.primaryPhysician || '??').split(' ').map((n: string) => n[0]).join('')
+                                          
+                                          // Wyprowadź numer gabinetu na podstawie roomName lub roomColor
+                                          let roomNumber: string | null = null
+                                          if (apt.roomName) {
+                                            try {
+                                              const roomData = JSON.parse(apt.roomName)
+                                              const name = roomData?.name || String(apt.roomName)
+                                              roomNumber = String(name).replace(/^Gabinet\s*/i, '')
+                                            } catch {
+                                              roomNumber = String(apt.roomName).replace(/^Gabinet\s*/i, '')
+                                            }
+                                          } else if (apt.roomColor) {
+                                            const match = PREDEFINED_ROOMS.find(r => r.color.toLowerCase() === String(apt.roomColor).toLowerCase())
+                                            if (match?.name) {
+                                              roomNumber = String(match.name).replace(/^Gabinet\s*/i, '')
+                                            }
+                                          }
+                                          
+                                          // Debug: sprawdź dane wizyty
+                                          console.log('Monthly apt:', apt.primaryPhysician, 'roomName:', apt.roomName, 'roomColor:', apt.roomColor)
+                                          console.log('Full apt object:', apt)
                                       return (
                                         <div 
-                                          key={index}
-                                          className={`text-white text-xs p-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${
-                                            (isCancelled || isCompleted) ? 'line-through opacity-75 brightness-75' : ''
-                                          }`}
-                                          style={{ backgroundColor: getAppointmentColor(appointment) }}
-                                        >
-                                          <div className="font-medium flex items-center gap-1">
-                                            {time}
-                                            {isCompleted && (
-                                              <div className="size-3 rounded-full bg-green-600 flex items-center justify-center border border-white/30">
-                                                <svg className="size-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                </svg>
+                                              key={i2}
+                                              className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:shadow-md transition bg-white border ${ (isCancelled || isCompleted) ? 'opacity-70 line-through' : '' }`}
+                                              onClick={() => setSelectedVisit(apt)}
+                                            >
+                                              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                                              {(() => {
+                                                const doctor = doctors.find(doc => doc.name === apt.primaryPhysician);
+                                                return doctor?.avatar ? (
+                                                  <img src={doctor.avatar} alt={apt.primaryPhysician} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                                                ) : (
+                                                  <div className="w-6 h-6 rounded-full bg-gray-200 text-[11px] text-gray-700 flex items-center justify-center flex-shrink-0">{initials}</div>
+                                                );
+                                              })()}
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 text-sm">
+                                                  <span className="font-semibold text-gray-900">{time}</span>
+                                                 {roomNumber && (
+                                                   <div className="flex items-center gap-1 ml-1">
+                                                     <div
+                                                       className="w-2 h-2 rounded-full border border-white"
+                                                       style={{ backgroundColor: apt.roomColor || '#3B82F6' }}
+                                                     />
+                                                     <span className="text-xs">
+                                                       {(() => {
+                                                         try {
+                                                           const roomData = JSON.parse(apt.roomName);
+                                                           return roomData.name ? roomData.name.replace('Gabinet ', '') : 'Gabinet';
+                                                         } catch (e) {
+                                                           // Fallback for old format
+                                                           return apt.roomName.replace('Gabinet ', '');
+                                                         }
+                                                       })()}
+                                                     </span>
+                                                   </div>
+                                                 )}
+                                                  <span className="text-gray-500">•</span>
+                                                  <span className="truncate text-gray-900">{apt.patient?.name || 'Pacjent'}</span>
                                               </div>
-                                            )}
-                                            {isCancelled && (
-                                              <div className="size-3 rounded-full bg-red-600 flex items-center justify-center border border-white/30">
-                                                <svg className="size-2 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                                  <path d="M18.3 5.71a1 1 0 00-1.41 0L12 10.59 7.11 5.7a1 1 0 00-1.41 1.41L10.59 12l-4.9 4.89a1 1 0 101.41 1.41L12 13.41l4.89 4.9a1 1 0 001.41-1.41L13.41 12l4.9-4.89a1 1 0 000-1.4z"/>
-                                                </svg>
-                                              </div>
-                                            )}
+                                                <div className="flex items-center gap-2 text-xs text-gray-600 mt-0.5">
+                                                  <span className="truncate">{apt.primaryPhysician || ''}</span>
+                                                 {/* Usunięto duplikat etykiety gabinetu w wierszu poniżej czasu */}
                                           </div>
-                                          <div className="truncate">{appointment.patient?.name || 'Brak danych'}</div>
                                         </div>
-                                      );
+                                            </div>
+                                          )
                                     })}
                                   </div>
                                 </div>
-                              );
-                            })}
+                                  )
+                                })
+                              })
+                            })()}
                           </div>
                         </div>
                       ) : (
                         // Widok tygodniowy (domyślny)
                         <>
                       {/* Calendar Header */}
-                      <div className="grid grid-cols-7 gap-4 mb-4">
-                        {["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "Sb"].map((day) => (
-                          <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
-                            {day}
-                          </div>
-                        ))}
-                      </div>
+                      <div className="bg-gray-100 rounded-lg grid grid-cols-7 gap-4 mb-4">
+                        {(() => {
+                          const labels = ["Pn", "Wt", "Śr", "Cz", "Pt", "Sb", "Nd"] // poniedziałek jako pierwszy
+                          const todayIdxMondayFirst = (new Date().getDay() + 6) % 7 // 0=Pn ... 6=Nd
+                          return labels.map((day, i) => (
+                            <div
+                              key={day}
+                              className={`text-center text-sm font-medium py-2 rounded-[20px] ${
+                                i === todayIdxMondayFirst ? 'bg-primary text-white' : 'text-gray-900'
+                              }`}
+                            >
+                              {day}
+                            </div>
+                          ))
+                        })()}
+                        </div>
 
-                      {/* Calendar Days */}
+                      {/* Calendar Days + szybki wybór tygodnia */}
                       <div className="grid grid-cols-7 gap-4">
-                        {/* Day 7 */}
-                        <div className="min-h-[120px] p-2">
-                          <div className="text-lg font-medium text-gray-900 mb-2">7</div>
-                        </div>
-
-                        {/* Day 8 */}
-                        <div className="min-h-[120px] p-2">
-                          <div className="text-lg font-medium text-gray-900 mb-2">8</div>
+                        {getWeekDates(currentWeek).map((day, i) => {
+                          const dayAppointments = appointments?.documents
+                            ?.filter((apt: any) => {
+                              const d = new Date(apt.schedule);
+                              return (
+                                d.getFullYear() === day.getFullYear() &&
+                                d.getMonth() === day.getMonth() &&
+                                d.getDate() === day.getDate()
+                              );
+                            }) || [];
+                          const isToday = day.toDateString() === new Date().toDateString();
+                              return (
+                            <div key={i} className={`min-h-[120px] p-2 rounded-[20px] ${isToday ? 'border-2 border-blue-400 bg-blue-50 ring-2 ring-blue-200' : 'bg-gray-50'}`}>
+                              <div className={`text-lg font-medium mb-2 ${isToday ? 'text-blue-900 font-bold' : 'text-gray-900'}`}>
+                                {day.getDate()}
+                                {isToday && (
+                                  <span className="text-xs text-blue-600 font-medium ml-1">Dziś</span>
+                                )}
+                              </div>
                           <div className="space-y-1">
-                            {calendarData[8]?.map((appointment: any, index: number) => {
+                                {dayAppointments.map((appointment: any, index: number) => {
                               const date = new Date(appointment.schedule);
                               const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
                               const isCancelled = isAppointmentCancelled(appointment);
                               const isCompleted = isAppointmentCompleted(appointment);
+                                  const color = appointment.roomColor ? appointment.roomColor : getAppointmentColor(appointment);
+                                  const doctor = doctors.find(doc => doc.name === appointment.primaryPhysician);
+                                  const initials = (doctor?.name || '??').split(' ').map((n: string) => n[0]).join('');
+                                  const roomLabel = appointment.roomName ? (() => {
+                                    try {
+                                      const roomData = JSON.parse(appointment.roomName);
+                                      return roomData.name ? String(roomData.name).replace(/^Gabinet\s*/i, '') : '';
+                                    } catch (e) {
+                                      return String(appointment.roomName).replace(/^Gabinet\s*/i, '');
+                                    }
+                                  })() : '';
+                                  
                               return (
                                 <div 
                                   key={index}
-                                  className={`text-white text-xs p-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${
-                                    (isCancelled || isCompleted) ? 'line-through opacity-75 brightness-75' : ''
-                                  }`}
-                                  style={{ backgroundColor: getAppointmentColor(appointment) }}
-                                >
-                                  <div className="font-medium flex items-center gap-1">
-                                    {time}
-                                    {isCompleted && (
-                                      <div className="size-3 rounded-full bg-green-600 flex items-center justify-center border border-white/30">
-                                        <svg className="size-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                        </svg>
+                                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:shadow-md transition bg-white border ${ (isCancelled || isCompleted) ? 'opacity-70 line-through' : '' }`}
+                                      onClick={() => setSelectedVisit(appointment)}
+                                    >
+                                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                                      {(() => {
+                                        const doctor = doctors.find(doc => doc.name === appointment.primaryPhysician);
+                                        return doctor?.avatar ? (
+                                          <img src={doctor.avatar} alt={appointment.primaryPhysician} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                                        ) : (
+                                          <div className="w-6 h-6 rounded-full bg-gray-200 text-[11px] text-gray-700 flex items-center justify-center flex-shrink-0">{initials}</div>
+                                        );
+                                      })()}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 text-sm">
+                                          <span className="font-semibold text-gray-900">{time}</span>
+                                          <span className="text-gray-500">•</span>
+                                          <span className="truncate text-gray-900">{appointment.patient?.name || 'Pacjent'}</span>
                             </div>
+                                        <div className="flex items-center gap-2 text-xs text-gray-600 mt-0.5">
+                                          <span className="truncate">{appointment.primaryPhysician || ''}</span>
+                                          {roomLabel && (
+                                            <span className="px-1.5 py-0.5 rounded-full border text-[10px] text-gray-700 bg-white" style={{borderColor: color}}>
+                                              {roomLabel}
+                                            </span>
                                     )}
-                                    {isCancelled && (
-                                      <div className="size-3 rounded-full bg-red-600 flex items-center justify-center border border-white/30">
-                                        <svg className="size-2 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                          <path d="M18.3 5.71a1 1 0 00-1.41 0L12 10.59 7.11 5.7a1 1 0 00-1.41 1.41L10.59 12l-4.9 4.89a1 1 0 101.41 1.41L12 13.41l4.89 4.9a1 1 0 001.41-1.41L13.41 12l4.9-4.89a1 1 0 000-1.4z"/>
-                                        </svg>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="opacity-90 flex items-center gap-1">
-                                    <span className="truncate flex-1">{appointment.patient?.name || 'Brak danych'}</span>
-                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                      {appointment.doctorAvatar && (
-                                        <div className="size-4 rounded-full overflow-hidden border border-white/30">
-                                          <img
-                                            src={appointment.doctorAvatar}
-                                            alt={appointment.primaryPhysician}
-                                            className="size-full object-cover"
-                                          />
-                                        </div>
-                                      )}
-                                    </div>
+                            </div>
                                   </div>
                                 </div>
                               );
                             })}
                           </div>
-                        </div>
-
-                        {/* Day 9 */}
-                        <div className="min-h-[120px] p-2">
-                          <div className="text-lg font-medium text-gray-900 mb-2">9</div>
-                          <div className="space-y-1">
-                            {calendarData[9]?.map((appointment: any, index: number) => {
-                              const date = new Date(appointment.schedule);
-                              const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                              const isCancelled = isAppointmentCancelled(appointment);
-                              const isCompleted = isAppointmentCompleted(appointment);
-                              return (
-                                <div 
-                                  key={index}
-                                  className={`text-white text-xs p-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${
-                                    (isCancelled || isCompleted) ? 'line-through opacity-75 brightness-75' : ''
-                                  }`}
-                                  style={{ backgroundColor: getAppointmentColor(appointment) }}
-                                >
-                                  <div className="font-medium flex items-center gap-1">
-                                    {time}
-                                    {isCompleted && (
-                                      <div className="size-3 rounded-full bg-green-600 flex items-center justify-center border border-white/30">
-                                        <svg className="size-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                        </svg>
-                            </div>
-                                    )}
-                                    {isCancelled && (
-                                      <div className="size-3 rounded-full bg-red-600 flex items-center justify-center border border-white/30">
-                                        <svg className="size-2 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                          <path d="M18.3 5.71a1 1 0 00-1.41 0L12 10.59 7.11 5.7a1 1 0 00-1.41 1.41L10.59 12l-4.9 4.89a1 1 0 101.41 1.41L12 13.41l4.89 4.9a1 1 0 001.41-1.41L13.41 12l4.9-4.89a1 1 0 000-1.4z"/>
-                                        </svg>
-                            </div>
-                                    )}
-                                  </div>
-                                  <div className="opacity-90 flex items-center gap-1">
-                                    <span className="truncate flex-1">{appointment.patient?.name || 'Brak danych'}</span>
-                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                      {appointment.doctorAvatar && (
-                                        <div className="size-4 rounded-full overflow-hidden border border-white/30">
-                                          <img
-                                            src={appointment.doctorAvatar}
-                                            alt={appointment.primaryPhysician}
-                                            className="size-full object-cover"
-                                          />
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
+                              {/* Usunięto przycisk przejścia do tygodnia */}
                                 </div>
                               );
                             })}
-                          </div>
-                        </div>
-
-                        {/* Day 10 - Today (highlighted) */}
-                        <div className="min-h-[120px] p-2 border-2 border-blue-400 rounded-lg bg-blue-50">
-                          <div className="text-lg font-medium text-gray-900 mb-2">10</div>
-                          <div className="space-y-1">
-                            {calendarData[10]?.map((appointment: any, index: number) => {
-                              const date = new Date(appointment.schedule);
-                              const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                              const isCancelled = isAppointmentCancelled(appointment);
-                              const isCompleted = isAppointmentCompleted(appointment);
-                              return (
-                                <div 
-                                  key={index}
-                                  className={`text-white text-xs p-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${
-                                    (isCancelled || isCompleted) ? 'line-through opacity-75 brightness-75' : ''
-                                  }`}
-                                  style={{ backgroundColor: getAppointmentColor(appointment) }}
-                                >
-                                  <div className="font-medium flex items-center gap-1">
-                                    {time}
-                                    {isCompleted && (
-                                      <div className="size-3 rounded-full bg-green-600 flex items-center justify-center border border-white/30">
-                                        <svg className="size-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                        </svg>
-                            </div>
-                                    )}
-                                    {isCancelled && (
-                                      <div className="size-3 rounded-full bg-red-600 flex items-center justify-center border border-white/30">
-                                        <svg className="size-2 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                          <path d="M18.3 5.71a1 1 0 00-1.41 0L12 10.59 7.11 5.7a1 1 0 00-1.41 1.41L10.59 12l-4.9 4.89a1 1 0 101.41 1.41L12 13.41l4.89 4.9a1 1 0 001.41-1.41L13.41 12l4.9-4.89a1 1 0 000-1.4z"/>
-                                        </svg>
-                            </div>
-                                    )}
-                                  </div>
-                                  <div className="opacity-90 flex items-center gap-1">
-                                    <span className="truncate flex-1">{appointment.patient?.name || 'Brak danych'}</span>
-                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                      {appointment.doctorAvatar && (
-                                        <div className="size-4 rounded-full overflow-hidden border border-white/30">
-                                          <img
-                                            src={appointment.doctorAvatar}
-                                            alt={appointment.primaryPhysician}
-                                            className="size-full object-cover"
-                                          />
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Day 11 */}
-                        <div className="min-h-[120px] p-2">
-                          <div className="text-lg font-medium text-gray-900 mb-2">11</div>
-                          <div className="space-y-1">
-                            {calendarData[11]?.map((appointment: any, index: number) => {
-                              const date = new Date(appointment.schedule);
-                              const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                              const isCancelled = isAppointmentCancelled(appointment);
-                              const isCompleted = isAppointmentCompleted(appointment);
-                              return (
-                                <div 
-                                  key={index}
-                                  className={`text-white text-xs p-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${
-                                    (isCancelled || isCompleted) ? 'line-through opacity-75 brightness-75' : ''
-                                  }`}
-                                  style={{ backgroundColor: getAppointmentColor(appointment) }}
-                                >
-                                  <div className="font-medium flex items-center gap-1">
-                                    {time}
-                                    {isCompleted && (
-                                      <div className="size-3 rounded-full bg-green-600 flex items-center justify-center border border-white/30">
-                                        <svg className="size-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                        </svg>
-                            </div>
-                                    )}
-                                    {isCancelled && (
-                                      <div className="size-3 rounded-full bg-red-600 flex items-center justify-center border border-white/30">
-                                        <svg className="size-2 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                          <path d="M18.3 5.71a1 1 0 00-1.41 0L12 10.59 7.11 5.7a1 1 0 00-1.41 1.41L10.59 12l-4.9 4.89a1 1 0 101.41 1.41L12 13.41l4.89 4.9a1 1 0 001.41-1.41L13.41 12l4.9-4.89a1 1 0 000-1.4z"/>
-                                        </svg>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="opacity-90 flex items-center gap-1">
-                                    <span className="truncate flex-1">{appointment.patient?.name || 'Brak danych'}</span>
-                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                      {appointment.doctorAvatar && (
-                                        <div className="size-4 rounded-full overflow-hidden border border-white/30">
-                                          <img
-                                            src={appointment.doctorAvatar}
-                                            alt={appointment.primaryPhysician}
-                                            className="size-full object-cover"
-                                          />
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Day 12 */}
-                        <div className="min-h-[120px] p-2">
-                          <div className="text-lg font-medium text-gray-900 mb-2">12</div>
-                          <div className="space-y-1">
-                            {calendarData[12]?.map((appointment: any, index: number) => {
-                              const date = new Date(appointment.schedule);
-                              const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                              const isCancelled = isAppointmentCancelled(appointment);
-                              const isCompleted = isAppointmentCompleted(appointment);
-                              return (
-                                <div 
-                                  key={index}
-                                  className={`text-white text-xs p-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${
-                                    (isCancelled || isCompleted) ? 'line-through opacity-75 brightness-75' : ''
-                                  }`}
-                                  style={{ backgroundColor: getAppointmentColor(appointment) }}
-                                >
-                                  <div className="font-medium flex items-center gap-1">
-                                    {time}
-                                    {isCompleted && (
-                                      <div className="size-3 rounded-full bg-green-600 flex items-center justify-center border border-white/30">
-                                        <svg className="size-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                        </svg>
-                            </div>
-                                    )}
-                                    {isCancelled && (
-                                      <div className="size-3 rounded-full bg-red-600 flex items-center justify-center border border-white/30">
-                                        <svg className="size-2 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                          <path d="M18.3 5.71a1 1 0 00-1.41 0L12 10.59 7.11 5.7a1 1 0 00-1.41 1.41L10.59 12l-4.9 4.89a1 1 0 101.41 1.41L12 13.41l4.89 4.9a1 1 0 001.41-1.41L13.41 12l4.9-4.89a1 1 0 000-1.4z"/>
-                                        </svg>
-                            </div>
-                                    )}
-                            </div>
-                                  <div className="opacity-90 flex items-center gap-1">
-                                    <span className="truncate flex-1">{appointment.patient?.name || 'Brak danych'}</span>
-                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                      {appointment.doctorAvatar && (
-                                        <div className="size-4 rounded-full overflow-hidden border border-white/30">
-                                          <img
-                                            src={appointment.doctorAvatar}
-                                            alt={appointment.primaryPhysician}
-                                            className="size-full object-cover"
-                                          />
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Day 13 */}
-                        <div className="min-h-[120px] p-2">
-                          <div className="text-lg font-medium text-gray-900 mb-2">13</div>
-                          <div className="space-y-1">
-                            {calendarData[13]?.map((appointment: any, index: number) => {
-                              const date = new Date(appointment.schedule);
-                              const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                              const isCancelled = isAppointmentCancelled(appointment);
-                              const isCompleted = isAppointmentCompleted(appointment);
-                              return (
-                                <div 
-                                  key={index}
-                                  className={`text-white text-xs p-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${
-                                    (isCancelled || isCompleted) ? 'line-through opacity-75 brightness-75' : ''
-                                  }`}
-                                  style={{ backgroundColor: getAppointmentColor(appointment) }}
-                                >
-                                  <div className="font-medium flex items-center gap-1">
-                                    {time}
-                                    {isCompleted && (
-                                      <div className="size-3 rounded-full bg-green-600 flex items-center justify-center border border-white/30">
-                                        <svg className="size-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                        </svg>
-                            </div>
-                                    )}
-                                    {isCancelled && (
-                                      <div className="size-3 rounded-full bg-red-600 flex items-center justify-center border border-white/30">
-                                        <svg className="size-2 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                          <path d="M18.3 5.71a1 1 0 00-1.41 0L12 10.59 7.11 5.7a1 1 0 00-1.41 1.41L10.59 12l-4.9 4.89a1 1 0 101.41 1.41L12 13.41l4.89 4.9a1 1 0 001.41-1.41L13.41 12l4.9-4.89a1 1 0 000-1.4z"/>
-                                        </svg>
-                          </div>
-                                    )}
-                        </div>
-                                  <div className="opacity-90 flex items-center gap-1">
-                                    <span className="truncate flex-1">{appointment.patient?.name || 'Brak danych'}</span>
-                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                      {appointment.doctorAvatar && (
-                                        <div className="size-4 rounded-full overflow-hidden border border-white/30">
-                                          <img
-                                            src={appointment.doctorAvatar}
-                                            alt={appointment.primaryPhysician}
-                                            className="size-full object-cover"
-                                          />
-                      </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
                           </div>
                         </>
                       )}
@@ -1580,7 +2700,7 @@ export function DesignaliCreative() {
                   <section className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h2 className="text-2xl font-semibold">Wizyty</h2>
-                      <Button className="bg-green-600 hover:bg-green-600 text-white border-0 rounded-2xl">
+                      <Button className="bg-primary text-white border-0 rounded-2xl">
                         <Plus className="mr-2 h-4 w-4" />
                         Umów pacjenta
                       </Button>
@@ -1590,7 +2710,7 @@ export function DesignaliCreative() {
                       <div className="overflow-x-auto">
                         <table className="w-full">
                           <thead>
-                            <tr className="border-b bg-gray-50/50">
+                            <tr className="border-b ">
                               <th className="text-left p-4 font-medium text-gray-600">#</th>
                               <th className="text-left p-4 font-medium text-gray-600">Pacjent</th>
                               <th className="text-left p-4 font-medium text-gray-600">Status</th>
@@ -1619,7 +2739,14 @@ export function DesignaliCreative() {
                                     <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs font-medium mr-2">
                                       •
                                     </div>
-                                    {visit.roomName ? visit.roomName.replace(/^Gabinet\s*/i, '') : 'Brak'}
+                                    {visit.roomName ? (() => {
+                                      try {
+                                        const roomData = JSON.parse(visit.roomName);
+                                        return roomData.name ? roomData.name.replace(/^Gabinet\s*/i, '') : 'Brak';
+                                      } catch (e) {
+                                        return visit.roomName.replace(/^Gabinet\s*/i, '');
+                                      }
+                                    })() : 'Brak'}
                                   </div>
                                 </td>
                                 <td className="p-4">
@@ -1637,19 +2764,22 @@ export function DesignaliCreative() {
                                 </td>
                                 <td className="p-4">
                                   <div className="flex items-center">
-                                    {visit.doctorAvatar ? (
-                                    <img
-                                        src={visit.doctorAvatar}
-                                        alt={visit.primaryPhysician}
-                                      className="w-8 h-8 rounded-full mr-2"
-                                    />
-                                    ) : (
-                                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-2">
-                                        <span className="text-gray-600 text-xs font-medium">
-                                          {visit.primaryPhysician?.split(' ').map((n: string) => n[0]).join('') || '??'}
-                                        </span>
-                                      </div>
-                                    )}
+                                    {(() => {
+                                      const doctor = doctors.find(doc => doc.name === visit.primaryPhysician);
+                                      return doctor?.avatar ? (
+                                        <img
+                                          src={doctor.avatar}
+                                          alt={visit.primaryPhysician}
+                                          className="w-8 h-8 rounded-full mr-2"
+                                        />
+                                      ) : (
+                                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-2">
+                                          <span className="text-gray-600 text-xs font-medium">
+                                            {visit.primaryPhysician?.split(' ').map((n: string) => n[0]).join('') || '??'}
+                                          </span>
+                                        </div>
+                                      );
+                                    })()}
                                     <span className="text-gray-900">{visit.primaryPhysician || 'Brak danych'}</span>
                                   </div>
                                 </td>
@@ -1658,49 +2788,37 @@ export function DesignaliCreative() {
                                     <AppointmentDetails
                                       appointment={visit}
                                       userId={visit.userId}
-                                      patientId={visit.patient.$id}
+                                      patientId={visit.patient?.$id || visit.userId}
                                     />
                                     
                                     {(() => {
-                                      // Backward compatibility: obsługa zarówno array jak i string
                                       let statuses: string[];
-                                      
                                       if (Array.isArray(visit.status)) {
                                         statuses = visit.status;
                                       } else {
-                                        statuses = visit.status.includes(',') ? visit.status.split(',').map((s: string) => s.trim()) : [visit.status];
-                                      }
-                                      
-                                      // Jeśli array jest pusty, traktuj jako "awaiting"
-                                      if (statuses.length === 0) {
-                                        statuses = ["awaiting"];
-                                      }
-                                      
-                                      const hasAwaiting = statuses.includes("awaiting") || statuses.includes("pending");
-                                      const hasAccepted = statuses.includes("accepted");
-                                      const hasCancelled = statuses.includes("cancelled");
-                                      const isCompleted = visit.isCompleted || false;
-                                      
-                                      // Sprawdź czy wizyta może być oznaczona jako odbyta
-                                      const canMarkAsCompleted = hasAccepted && !hasCancelled && !isCompleted;
+                                                  statuses = (visit.status || '').includes(',') ? visit.status.split(',').map((s: string) => s.trim()) : [visit.status || 'awaiting'];
+                                                }
+
+                                                const hasAwaiting = statuses.includes('awaiting') || statuses.includes('pending');
+                                                const hasAccepted = statuses.includes('accepted');
+                                                const hasCancelled = statuses.includes('cancelled');
+                                                const isCompleted = visit.isCompleted || statuses.includes('completed');
                                       
                                       const handleMarkAsCompleted = async () => {
                                         try {
                                           await markAppointmentAsCompleted(visit.$id);
-                                          // Odśwież dane po oznaczeniu jako odbyta
                                           fetchAppointments();
                                         } catch (error) {
-                                          console.error("Błąd podczas oznaczania wizyty jako odbytej:", error);
+                                                    console.error('Błąd podczas oznaczania wizyty jako odbytej:', error);
                                         }
                                       };
                                       
-                                      // Jeśli wizyta się odbyła, pokaż tylko akcje dla odbytych wizyt
                                       if (isCompleted) {
                                         return (
                                           <>
                                             <AppointmentNotesModal appointment={visit} />
                                             <AppointmentModal
-                                              patientId={visit.patient.$id}
+                                              patientId={visit.patient?.$id || visit.userId}
                                               userId={visit.userId}
                                               appointment={visit}
                                               type="create"
@@ -1712,23 +2830,24 @@ export function DesignaliCreative() {
                                         );
                                       }
 
-                                      // Dla nieodbytych wizyt - standardowe akcje
                                       return (
                                         <>
                                           {hasAwaiting && (
                                             <AppointmentModal
-                                              patientId={visit.patient.$id}
+                                              patientId={visit.patient?.$id || visit.userId}
                                               userId={visit.userId}
                                               appointment={visit}
                                               type="schedule"
                                               title="Potwierdź wizytę"
                                               description="Proszę potwierdzić następujące szczegóły, aby potwierdzić wizytę."
                                               isAdminModal={true}
+                                                        trigger={<Button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">Potwierdź wizytę</Button>}
                                             />
                                           )}
                                           {hasAccepted && (
+                                                      <>
                                             <AppointmentModal
-                                              patientId={visit.patient.$id}
+                                              patientId={visit.patient?.$id || visit.userId}
                                               userId={visit.userId}
                                               appointment={visit}
                                               type="plan"
@@ -1736,18 +2855,17 @@ export function DesignaliCreative() {
                                               description="Proszę ustawić konkretną datę i godzinę wizyty."
                                               isAdminModal={true}
                                             />
-                                          )}
-                                          {canMarkAsCompleted && (
                                             <button
                                               onClick={handleMarkAsCompleted}
                                               className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium text-sm"
                                             >
-                                              Odbyta
+                                                          Oznacz jako odbytą
                                             </button>
+                                                      </>
                                           )}
                                           {!hasCancelled && (
                                             <AppointmentModal
-                                              patientId={visit.patient.$id}
+                                              patientId={visit.patient?.$id || visit.userId}
                                               userId={visit.userId}
                                               appointment={visit}
                                               type="cancel"
@@ -1767,7 +2885,7 @@ export function DesignaliCreative() {
                         </table>
                       </div>
 
-                      <div className="flex items-center justify-between p-4 border-t bg-gray-50/50">
+                      <div className="flex items-center justify-between p-4 border-t ">
                         <div className="text-sm text-gray-600">
                           Strona {currentPage} z {totalPages} ({totalItems} wizyt)
                         </div>
@@ -1816,12 +2934,12 @@ export function DesignaliCreative() {
                         <Button variant="outline" className="rounded-xl border-gray-200 text-gray-600 hover:bg-gray-50">
                           Pokaż filtry
                         </Button>
-                        <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl">
+                        <Button className="text-white rounded-xl">
                           Dodaj pacjenta
                       </Button>
                     </div>
+                    </div>
                   </div>
-                      </div>
 
                   {/* Patients Table */}
                   <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
@@ -1833,8 +2951,8 @@ export function DesignaliCreative() {
                         <div>Ostatnia wizyta</div>
                         <div>Najbliższa wizyta</div>
                         <div>Specjalista</div>
-                          <div></div>
-                        </div>
+                        <div></div>
+                      </div>
                             </div>
 
                     {/* Table Body */}
@@ -1886,14 +3004,14 @@ export function DesignaliCreative() {
                                     description={`Umów nową wizytę dla ${patient.name}`}
                                     isAdminModal={true}
                                     trigger={
-                                      <Button className="bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-lg px-3 py-1 text-sm font-medium flex items-center gap-1">
+                                      <Button variant="outline" className="rounded-lg px-3 py-1 text-sm font-medium flex items-center gap-1">
                                         <Plus className="h-3 w-3" />
-                                        Umów
-                                      </Button>
+                              Umów
+                            </Button>
                                     }
                                   />
                                 )}
-                            </div>
+                          </div>
                             <div>
                                 {doctor ? (
                                   <div className="flex items-center gap-2">
@@ -1908,15 +3026,15 @@ export function DesignaliCreative() {
                                         <span className="text-xs font-medium text-gray-600">
                                           {doctor.name.split(' ').map((n: string) => n[0]).join('')}
                                         </span>
-                            </div>
+                        </div>
                                     )}
                                     <span className="text-sm text-gray-600">{doctor.name}</span>
                           </div>
                                 ) : (
                                   <span className="text-gray-500">-</span>
                                 )}
-                          </div>
-                              <div>
+                            </div>
+                            <div>
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
@@ -1928,83 +3046,588 @@ export function DesignaliCreative() {
                                 >
                                   Karta pacjenta
                             </Button>
+                            </div>
                           </div>
-                        </div>
-                      </div>
+                          </div>
                         )
                       })}
-                    </div>
-                  </div>
+                          </div>
+                        </div>
                 </TabsContent>
 
                 <TabsContent value="specialists" className="space-y-8 mt-0">
+                  {/* Header */}
                   <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-3xl font-bold text-gray-900">Lista specjalistów</h1>
+                    <h1 className="text-3xl font-bold text-gray-900">Godziny pracy</h1>
+                    <Button 
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl px-6 py-2"
+                      onClick={() => setShowAddEmployeeModal(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Dodaj specjalistę
+                    </Button>
+                            </div>
+
+                  {/* Weekly View Title */}
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">Widok tygodniowy</h2>
+                            </div>
+
+                  {/* Search and Navigation */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="relative flex-1 max-w-md">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Szukaj pracowników"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                            </div>
+                    
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newWeek = new Date(currentWeek)
+                            newWeek.setDate(currentWeek.getDate() - 7)
+                            setCurrentWeek(newWeek)
+                          }}
+                        className="p-2 hover:bg-gray-100 rounded-lg"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                      <span className="text-sm font-medium text-gray-900 min-w-[140px] text-center">
+                          {formatWeekRange(currentWeek)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newWeek = new Date(currentWeek)
+                            newWeek.setDate(currentWeek.getDate() + 7)
+                            setCurrentWeek(newWeek)
+                          }}
+                        className="p-2 hover:bg-gray-100 rounded-lg"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                        </div>
+                      </div>
+
+                  {/* Schedule Table */}
+                  <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900 border-r border-gray-200">
+                              Pracownik
+                            </th>
+                            {getWeekDates(currentWeek).map((day, index) => {
+                              const isToday = day.toDateString() === new Date().toDateString();
+                              return (
+                                <th key={index} className={`px-4 py-4 text-center text-sm font-medium border-r border-gray-200 last:border-r-0 ${isToday ? 'bg-blue-100 text-blue-900 border-blue-300' : 'text-gray-900'}`}>
+                                  <div>
+                                    <div className={`text-xs ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>
+                                      {['Pn', 'Wt', 'Śr', 'Czw', 'Pt', 'Sb', 'Ndz'][index]}
+                                    </div>
+                                    <div className={`text-sm font-semibold ${isToday ? 'text-blue-900' : ''}`}>
+                                      {day.getDate()}.{String(day.getMonth() + 1).padStart(2, '0')}
+                                      {isToday && (
+                                        <span className="text-xs text-blue-600 font-medium ml-1">Dziś</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </th>
+                              );
+                            })}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {doctors.map((doctor) => (
+                            <tr key={doctor.$id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 border-r border-gray-200">
+                                <div className="flex items-center gap-3">
+                                  {doctor.avatar ? (
+                                    <img
+                                      src={doctor.avatar}
+                                      alt={doctor.name}
+                                      className="w-8 h-8 rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                      <span className="text-xs font-medium text-gray-600">
+                                        {doctor.name.split(' ').map((n: string) => n[0]).join('')}
+                                      </span>
+                                    </div>
+                                  )}
+                        <div>
+                                    <div className="font-medium text-gray-900">{doctor.name}</div>
+                                    <div className="text-sm text-gray-500">{doctor.specialization}</div>
+                        </div>
+                      </div>
+                              </td>
+                              {getWeekDates(currentWeek).map((day, dayIndex) => {
+                                // Użyj slotów dla konkretnej daty, jeśli istnieją, w przeciwnym razie użyj slotów tygodniowych
+                                const specificDateSlots = getDaySlotsForDate(doctor.$id, day)
+                                const dayOfWeek = dayIndex === 6 ? 0 : dayIndex + 1 // Sunday = 0, Monday = 1, etc.
+                                const weeklySlots = getDaySlots(doctor.$id, dayOfWeek)
+                                const isToday = day.toDateString() === new Date().toDateString();
+                                
+                                // Priorytet: sloty dla konkretnej daty, potem sloty tygodniowe
+                                const slots = specificDateSlots.length > 0 ? specificDateSlots : weeklySlots
+                                
+                                return (
+                                  <td key={dayIndex} className={`px-4 py-4 text-center border-r border-gray-200 last:border-r-0 ${isToday ? 'bg-blue-50 border-blue-200' : ''}`}>
+                                    <div className="space-y-1">
+                                      {slots.length > 0 ? (
+                                        slots.map((slot, slotIndex) => (
+                                          <div
+                                            key={slotIndex}
+                                            className={`text-xs px-2 py-1 rounded-2xl cursor-pointer flex items-center gap-1 ${
+                                              slot.status === 'vacation' 
+                                                ? 'bg-orange-100 text-orange-700 border border-orange-200' 
+                                                : slot.status === 'sick_leave'
+                                                ? 'bg-red-100 text-red-600 border border-red-200'
+                                                : slot.type === 'nfz'
+                                                ? 'bg-blue-100 text-blue-600 border border-blue-200'
+                                                : 'text-gray-900'
+                                            }`}
+                                            onClick={() => openScheduleModal(doctor, dayOfWeek, day)}
+                                          >
+                                            {slot.status === 'vacation' ? (
+                                              <div className="flex items-center gap-1.5 p-1.5 cursor-pointer transition-colors text-orange-700">
+                                                <span className="text-xs font-medium">Urlop</span>
+                                              </div>
+                                            ) : slot.status === 'sick_leave' ? (
+                                              <div className="flex items-center gap-1.5 p-1.5 cursor-pointer transition-colors hover:bg-red-200 bg-red-100 text-red-600">
+                                                <span className="text-xs font-medium">Zwolnienie</span>
+                                              </div>
+                                            ) : (
+                                              <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-1">
+                                                  <span className="text-xs font-semibold text-gray-900">{slot.startTime} - {slot.endTime}</span>
+                                                  {slot.roomName && (
+                                                    <div className="flex items-center gap-1 ml-1">
+                                                      <div
+                                                        className="w-2 h-2 rounded-full border border-white"
+                                                        style={{ backgroundColor: slot.roomColor || '#3B82F6' }}
+                                                      />
+                                                      <span className="text-xs">
+                                                        {(() => {
+                                                          try {
+                                                            const roomData = JSON.parse(slot.roomName);
+                                                            return roomData.name ? roomData.name.replace('Gabinet ', '') : 'Gabinet';
+                                                          } catch (e) {
+                                                            // Fallback for old format
+                                                            return slot.roomName.replace('Gabinet ', '');
+                                                          }
+                                                        })()}
+                                                      </span>
+                        </div>
+                                                  )}
+                        </div>
+                                                <div className="text-xs text-left">
+                                                  {slot.type === 'nfz' ? (
+                                                    <img 
+                                                      src="/assets/images/nfz.jpg" 
+                                                      alt="NFZ" 
+                                                      className="w-6 h-6 rounded-[5px]"
+                                                    />
+                                                  ) : (
+                                                    <span className="text-gray-500">Komercyjne</span>
+                                                  )}
+                        </div>
+                        </div>
+                                            )}
+                        </div>
+                                        ))
+                                      ) : (
+                                        <div
+                                          className="text-xs text-gray-400 cursor-pointer hover:text-gray-600"
+                                          onClick={() => openScheduleModal(doctor, dayOfWeek, day)}
+                                        >
+                                          -
+                        </div>
+                                      )}
+                        </div>
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      </div>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card className="rounded-3xl bg-white border-gray-200 p-6">
-                      <div className="flex items-start gap-4 mb-6">
-                        <img
-                          src="/professional-woman-doctor.png"
-                          alt="Sylwia Klejnowska"
-                          className="w-20 h-20 rounded-full object-cover"
-                        />
-                        <div>
-                          <h3 className="text-xl font-semibold text-gray-900">Sylwia Klejnowska</h3>
-                          <p className="text-gray-600">Psycholog</p>
-                        </div>
-                      </div>
+                  {/* Podsumowanie miesięczne */}
+                 <div className="mt-8">
+                   <div className="flex items-center justify-between mb-6">
+                     <h2 className="text-2xl font-bold text-gray-900">Podsumowanie miesięczne</h2>
+                     <div className="flex items-center gap-2">
+                       <Button
+                         variant="outline"
+                         size="sm"
+                         onClick={async () => {
+                           try {
+                             const { initializeAllStats } = await import('../../lib/actions/schedule.actions')
+                             await initializeAllStats()
+                             toast({ variant: "success", title: "Zainicjalizowano statystyki" })
+                             window.location.reload()
+                           } catch (error) {
+                             console.error('Error initializing stats:', error)
+                              toast({ variant: "destructive", title: "Błąd", description: "Inicjalizacja statystyk nie powiodła się" })
+                           }
+                         }}
+                       >
+                         Inicjalizuj statystyki
+                       </Button>
+                       <Button
+                         variant="outline"
+                         disabled
+                         size="sm">
+                         Exportuj dane
+                       </Button>
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         onClick={() => {
+                           const newMonth = new Date(monthCursor)
+                           newMonth.setMonth(monthCursor.getMonth() - 1)
+                           setMonthCursor(newMonth)
+                         }}
+                       >
+                         <ChevronLeft className="h-4 w-4" />
+                       </Button>
+                       <span className="text-sm font-medium text-gray-900 min-w-[160px] text-center">
+                         {monthCursor.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
+                       </span>
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         onClick={() => {
+                           const newMonth = new Date(monthCursor)
+                           newMonth.setMonth(monthCursor.getMonth() + 1)
+                           setMonthCursor(newMonth)
+                         }}
+                       >
+                         <ChevronRight className="h-4 w-4" />
+                       </Button>
+                     </div>
+                   </div>
 
-                      <div className="space-y-3 mb-6">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Gabinet:</span>
-                          <span className="font-medium text-gray-900">2B</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Email:</span>
-                          <span className="font-medium text-gray-900">sylwia.klejnowska@gmail.com</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Telefon:</span>
-                          <span className="font-medium text-gray-900">+48663164074</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Dostępność:</span>
-                          <span className="font-medium text-green-600">Dostępny</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Opłata:</span>
-                          <span className="font-medium text-gray-900">150 PLN</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Wizyta:</span>
-                          <span className="font-medium text-gray-900">30 min</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Status:</span>
-                          <span className="font-medium text-green-600">Aktywny</span>
-                        </div>
+                    <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-4 text-left text-sm font-medium text-gray-900 border-r border-gray-200">
+                                Pracownik
+                              </th>
+                              <th className="px-4 py-4 text-center text-sm font-medium text-gray-900 border-r border-gray-200">
+                                Godziny pracy<br />
+                                <span className="text-xs text-gray-500 font-normal">(z miesiąca)</span>
+                              </th>
+                              <th className="px-4 py-4 text-center text-sm font-medium text-gray-900 border-r border-gray-200">
+                                Dni urlopowe<br />
+                                <span className="text-xs text-gray-500 font-normal">(z roku)</span>
+                              </th>
+                              <th className="px-4 py-4 text-center text-sm font-medium text-gray-900 border-r border-gray-200">
+                                Zwolnienia<br />
+                                <span className="text-xs text-gray-500 font-normal">(z roku)</span>
+                              </th>
+                              <th className="px-4 py-4 text-center text-sm font-medium text-gray-900">
+                                Pozostałe urlopy<br />
+                                <span className="text-xs text-gray-500 font-normal">(z roku)</span>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {doctors.map((doctor) => {
+                              const stats = monthlyStats[doctor.$id] || {
+                                totalHours: 0,
+                                vacationDays: 0,
+                                sickLeaveDays: 0,
+                                workingDays: 0,
+                                remainingVacationDays: 21
+                              }
+                              return (
+                                <tr key={doctor.$id} className="hover:bg-gray-50">
+                                  <td className="px-6 py-4 border-r border-gray-200">
+                                    <div className="flex items-center gap-3">
+                                      {doctor.avatar ? (
+                                        <img
+                                          src={doctor.avatar}
+                                          alt={doctor.name}
+                                          className="w-8 h-8 rounded-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                          <span className="text-xs font-medium text-gray-600">
+                                            {doctor.name.split(' ').map((n: string) => n[0]).join('')}
+                                          </span>
+                                        </div>
+                                      )}
+                                      <div>
+                                        <div className="font-medium text-gray-900">{doctor.name}</div>
+                                        <div className="text-sm text-gray-500">{doctor.specialization}</div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 text-center border-r border-gray-200">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {stats.totalHours}h
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {stats.workingDays} dni
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 text-center border-r border-gray-200">
+                                    <div className="text-sm font-medium text-orange-600">
+                                      {stats.vacationDays} dni
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 text-center border-r border-gray-200">
+                                    <div className="text-sm font-medium text-red-600">
+                                      {stats.sickLeaveDays} dni
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 text-center">
+                                    <div className="text-sm font-medium text-green-600">
+                                      {stats.remainingVacationDays} dni
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      z 21 dostępnych
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
                       </div>
+                      </div>
+                  </div>
 
-                      <div className="flex gap-3">
-                        <Button className="bg-blue-600 hover:bg-blue-600 text-white rounded-2xl flex-1">Edytuj</Button>
-                        <Button className="bg-green-600 hover:bg-green-600 text-white rounded-2xl flex-1">
-                          Harmonogram
+                  {/* Miesięczny grafik specjalistów */}
+                  <div className="mt-8">
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-2xl font-bold text-gray-900">Grafik miesięczny</h2>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newMonth = new Date(monthCursor)
+                            newMonth.setMonth(monthCursor.getMonth() - 1)
+                            setMonthCursor(newMonth)
+                          }}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm font-medium text-gray-900 min-w-[160px] text-center">
+                          {monthCursor.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newMonth = new Date(monthCursor)
+                            newMonth.setMonth(monthCursor.getMonth() + 1)
+                            setMonthCursor(newMonth)
+                          }}
+                        >
+                          <ChevronRight className="h-4 w-4" />
                         </Button>
                       </div>
-                    </Card>
+                    </div>
 
-                    <Card className="rounded-3xl bg-gray-50 border-2 border-dashed border-gray-300 p-6 flex flex-col items-center justify-center min-h-[400px]">
-                      <div className="w-16 h-16 rounded-full border-2 border-dashed border-gray-400 flex items-center justify-center mb-4">
-                        <Plus className="h-8 w-8 text-gray-400" />
+                    <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden">
+                      {/* Nagłówki dni tygodnia */}
+                      <div className="bg-gray-50 grid grid-cols-7 gap-px">
+                        {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'].map((day) => (
+                          <div key={day} className="p-3 text-center text-sm font-medium text-gray-900">
+                            {day}
+                          </div>
+                        ))}
                       </div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Dodaj specjalistę</h3>
-                      <p className="text-gray-600 text-center mb-4">Dodaj nowego specjalistę do swojej poradni</p>
-                      <Button className="bg-blue-600 hover:bg-blue-600 text-white rounded-2xl">
-                        Dodaj specjalistę
-                      </Button>
-                    </Card>
+
+                      {/* Siatka kalendarza */}
+                      <div className="grid grid-cols-7 gap-px bg-gray-200">
+                        {(() => {
+                          const monthDates = getMonthDates(monthCursor)
+                          const firstDay = monthDates[0]
+                          const startDay = (firstDay.getDay() + 6) % 7 // Poniedziałek = 0
+                          const totalCells = Math.ceil((startDay + monthDates.length) / 7) * 7
+                          
+                          return Array.from({ length: totalCells }, (_, index) => {
+                            const dayIndex = index - startDay
+                            const isCurrentMonth = dayIndex >= 0 && dayIndex < monthDates.length
+                            const day = isCurrentMonth ? monthDates[dayIndex] : null
+                            
+                            if (!isCurrentMonth) {
+                              return (
+                                <div key={index} className="h-full bg-white"></div>
+                              )
+                            }
+
+                            const dayOfWeek = day ? (day.getDay() === 0 ? 7 : day.getDay()) : 1 // Monday = 1, Sunday = 7
+                            const isToday = day ? day.toDateString() === new Date().toDateString() : false
+                            
+                            return (
+                              <div 
+                                key={index} 
+                                className={`h-full p-3 border-r border-b border-gray-100 ${isToday ? 'bg-blue-100 border-blue-300 ring-2 ring-blue-200' : 'bg-white'}`}
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className={`text-sm font-medium ${isToday ? 'text-blue-900 font-bold' : isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}`}>
+                                    {day ? day.getDate() : ''}
+                                  </span>
+                                  {isToday && (
+                                    <span className="text-xs text-blue-600 font-medium">Dziś</span>
+                                  )}
+                                </div>
+                                
+                                <div className="space-y-1.5">
+                                  {doctors.map((doctor) => {
+                                    const slots = day ? getDaySlotsForDate(doctor.$id, day) : []
+                                    
+                                    if (slots.length === 0) {
+                                      return (
+                                        <div 
+                                          key={doctor.$id} 
+                                          className="flex items-center gap-1.5 p-1.5 rounded hover:bg-gray-100 cursor-pointer transition-colors"
+                                          onClick={() => day && openScheduleModalForDate(doctor, day)}
+                                        >
+                                          {doctor.avatar ? (
+                                            <img
+                                              src={doctor.avatar}
+                                              alt={doctor.name}
+                                              className="w-6 h-6 rounded-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                              <span className="text-xs font-medium text-gray-600">
+                                                {doctor.name.split(' ').map((n: string) => n[0]).join('')}
+                                              </span>
+                                            </div>
+                                          )}
+                                          <span className="text-xs text-gray-400">+</span>
+                                        </div>
+                                      )
+                                    }
+                                    
+                                    
+                                    return slots.map((slot, slotIndex) => {
+                                      if (slot.status === 'sick_leave') {
+                                        return (
+                                          <div 
+                                            key={slotIndex} 
+                                            className="flex items-center gap-1.5 p-1.5 rounded cursor-pointer transition-colors hover:bg-red-200 bg-red-100 text-red-600 border border-red-200"
+                                            onClick={() => day && openScheduleModalForDate(doctor, day)}
+                                          >
+                                            {doctor.avatar ? (
+                                              <img
+                                                src={doctor.avatar}
+                                                alt={doctor.name}
+                                                className="w-6 h-6 rounded-full object-cover"
+                                              />
+                                            ) : (
+                                              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                                <span className="text-xs font-medium text-gray-600">
+                                                  {doctor.name.split(' ').map((n: string) => n[0]).join('')}
+                                                </span>
+                                              </div>
+                                            )}
+                                            <span className="text-xs font-medium">Zwolnienie</span>
+                                          </div>
+                                        )
+                                      }
+                                      
+                                      if (slot.status === 'vacation') {
+                                        return (
+                                          <div 
+                                            key={slotIndex} 
+                                            className="flex items-center gap-1.5 p-1.5 rounded cursor-pointer transition-colors hover:bg-orange-200 bg-orange-100 text-orange-700 border border-orange-200"
+                                            onClick={() => day && openScheduleModalForDate(doctor, day)}
+                                          >
+                                            {doctor.avatar ? (
+                                              <img
+                                                src={doctor.avatar}
+                                                alt={doctor.name}
+                                                className="w-6 h-6 rounded-full object-cover"
+                                              />
+                                            ) : (
+                                              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                                <span className="text-xs font-medium text-gray-600">
+                                                  {doctor.name.split(' ').map((n: string) => n[0]).join('')}
+                                                </span>
+                                              </div>
+                                            )}
+                                            <span className="text-xs font-medium">Urlop</span>
+                                          </div>
+                                        )
+                                      }
+                                      
+                                      return (
+                                        <div 
+                                          key={slotIndex} 
+                                          className="flex items-center gap-1.5 p-1.5 rounded cursor-pointer transition-colors hover:bg-blue-50"
+                                          onClick={() => day && openScheduleModalForDate(doctor, day)}
+                                        >
+                                          {doctor.avatar ? (
+                                            <img
+                                              src={doctor.avatar}
+                                              alt={doctor.name}
+                                              className="w-6 h-6 rounded-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                              <span className="text-xs font-medium text-gray-600">
+                                                {doctor.name.split(' ').map((n: string) => n[0]).join('')}
+                                              </span>
+                                            </div>
+                                          )}
+                                          <div className="flex flex-col min-w-0">
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-xs font-medium text-gray-900 truncate">
+                                                {slot.startTime}-{slot.endTime}
+                                              </span>
+                                              {slot.roomColor && (
+                                                <div
+                                                  className="w-2 h-2 rounded-full border border-white"
+                                                  style={{ backgroundColor: slot.roomColor }}
+                                                />
+                                              )}
+                                              <span className="text-xs">
+                                                {(() => {
+                                                  try {
+                                                    const roomData = JSON.parse(slot.roomName);
+                                                    return roomData.name ? roomData.name.replace('Gabinet ', '') : 'Gabinet';
+                                                  } catch (e) {
+                                                    // Fallback for old format
+                                                    return slot.roomName.replace('Gabinet ', '');
+                                                  }
+                                                })()}
+                                              </span>
+                                            </div>
+                                            <span className={`text-xs truncate ${slot.type === 'nfz' ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
+                                              {slot.type === 'nfz' ? 'NFZ' : 'Komercyjne'}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )
+                                    })
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })
+                        })()}
+                      </div>
+                      </div>
                   </div>
                 </TabsContent>
 
@@ -2047,7 +3670,7 @@ export function DesignaliCreative() {
                         <p className="text-gray-700 font-medium mb-2">Specjalista:</p>
                         <div className="flex items-center gap-3">
                           <img
-                            src="/professional-woman-doctor.png"
+                            src="/assets/images/sylwia.jpg"
                             alt="Sylwia Klejnowska"
                             className="w-10 h-10 rounded-full object-cover"
                           />
@@ -2081,7 +3704,7 @@ export function DesignaliCreative() {
                         <p className="text-gray-700 font-medium mb-2">Specjalista:</p>
                         <div className="flex items-center gap-3">
                           <img
-                            src="/professional-woman-doctor.png"
+                            src="/assets/images/sylwia.jpg"
                             alt="Sylwia Klejnowska"
                             className="w-10 h-10 rounded-full object-cover"
                           />
@@ -2156,925 +3779,18 @@ export function DesignaliCreative() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="apps" className="space-y-8 mt-0">
-                  <section>
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5 }}
-                      className="overflow-hidden rounded-3xl bg-gradient-to-r from-pink-600 via-red-600 to-orange-600 p-8 text-white"
-                    >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div className="space-y-2">
-                          <h2 className="text-3xl font-bold">Creative Apps Collection</h2>
-                          <p className="max-w-[600px] text-white/80">
-                            Discover our full suite of professional design and creative applications.
-                          </p>
-                        </div>
-                        <Button className="w-fit rounded-2xl bg-white text-red-700 hover:bg-white/90">
-                          <Download className="mr-2 h-4 w-4" />
-                          Install Desktop App
-                        </Button>
-                      </div>
-                    </motion.div>
-                  </section>
+                {/* Usunięto ciężkie sekcje Apps/Files/Projects/Learn aby odchudzić stronę */}
 
-                  <div className="flex flex-wrap gap-3 mb-6">
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      All Categories
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      Creative
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      Video
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      Web
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      3D
-                    </Button>
-                    <div className="flex-1"></div>
-                    <div className="relative w-full md:w-auto mt-3 md:mt-0">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="search"
-                        placeholder="Search apps..."
-                        className="w-full rounded-2xl pl-9 md:w-[200px]"
-                      />
-                    </div>
-                  </div>
+                
 
-                  <section className="space-y-4">
-                    <h2 className="text-2xl font-semibold">New Releases</h2>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                      {apps
-                        .filter((app) => app.new)
-                        .map((app) => (
-                          <motion.div key={app.name} whileHover={{ scale: 1.02, y: -5 }} whileTap={{ scale: 0.98 }}>
-                            <Card className="overflow-hidden rounded-3xl border-2 hover:border-primary/50 transition-all duration-300">
-                              <CardHeader className="pb-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-                                    {app.icon}
-                                  </div>
-                                  <Badge className="rounded-xl bg-amber-500">New</Badge>
-                                </div>
-                              </CardHeader>
-                              <CardContent className="pb-2">
-                                <CardTitle className="text-lg">{app.name}</CardTitle>
-                                <CardDescription>{app.description}</CardDescription>
-                                <div className="mt-2">
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span>Installation</span>
-                                    <span>{app.progress}%</span>
-                                  </div>
-                                  <Progress value={app.progress} className="h-2 mt-1 rounded-xl" />
-                                </div>
-                              </CardContent>
-                              <CardFooter>
-                                <Button variant="secondary" className="w-full rounded-2xl">
-                                  {app.progress < 100 ? "Continue Install" : "Open"}
-                                </Button>
-                              </CardFooter>
-                            </Card>
-                          </motion.div>
-                        ))}
-                    </div>
-                  </section>
+                
 
-                  <section className="space-y-4">
-                    <h2 className="text-2xl font-semibold">All Apps</h2>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                      {apps.map((app) => (
-                        <motion.div key={app.name} whileHover={{ scale: 1.02, y: -5 }} whileTap={{ scale: 0.98 }}>
-                          <Card className="overflow-hidden rounded-3xl border hover:border-primary/50 transition-all duration-300">
-                            <CardHeader className="pb-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-                                  {app.icon}
-                                </div>
-                                <Badge variant="outline" className="rounded-xl">
-                                  {app.category}
-                                </Badge>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="pb-2">
-                              <CardTitle className="text-lg">{app.name}</CardTitle>
-                              <CardDescription>{app.description}</CardDescription>
-                            </CardContent>
-                            <CardFooter className="flex gap-2">
-                              <Button variant="secondary" className="flex-1 rounded-2xl">
-                                {app.progress < 100 ? "Install" : "Open"}
-                              </Button>
-                              <Button variant="outline" size="icon" className="rounded-2xl bg-transparent">
-                                <Star className="h-4 w-4" />
-                              </Button>
-                            </CardFooter>
-                          </Card>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </section>
-                </TabsContent>
-
-                <TabsContent value="files" className="space-y-8 mt-0">
-                  <section>
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5 }}
-                      className="overflow-hidden rounded-3xl bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 p-8 text-white"
-                    >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div className="space-y-2">
-                          <h2 className="text-3xl font-bold">Your Creative Files</h2>
-                          <p className="max-w-[600px] text-white/80">
-                            Access, manage, and share all your design files in one place.
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-3">
-                          <Button className="rounded-2xl bg-white/20 backdrop-blur-md hover:bg-white/30">
-                            <Cloud className="mr-2 h-4 w-4" />
-                            Cloud Storage
-                          </Button>
-                          <Button className="rounded-2xl bg-white text-blue-700 hover:bg-white/90">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Upload Files
-                          </Button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </section>
-
-                  <div className="flex flex-wrap gap-3 mb-6">
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <FileText className="mr-2 h-4 w-4" />
-                      All Files
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <Clock className="mr-2 h-4 w-4" />
-                      Recent
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <Users className="mr-2 h-4 w-4" />
-                      Shared
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <Star className="mr-2 h-4 w-4" />
-                      Favorites
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <Trash className="mr-2 h-4 w-4" />
-                      Trash
-                    </Button>
-                    <div className="flex-1"></div>
-                    <div className="relative w-full md:w-auto mt-3 md:mt-0">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="search"
-                        placeholder="Search files..."
-                        className="w-full rounded-2xl pl-9 md:w-[200px]"
-                      />
-                    </div>
-                  </div>
-
-                  <section className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-2xl font-semibold">All Files</h2>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="rounded-2xl bg-transparent">
-                          <PanelLeft className="mr-2 h-4 w-4" />
-                          Filter
-                        </Button>
-                        <Button variant="outline" size="sm" className="rounded-2xl bg-transparent">
-                          <ArrowUpDown className="mr-2 h-4 w-4" />
-                          Sort
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="rounded-3xl border overflow-hidden">
-                      <div className="bg-muted/50 p-3 hidden md:grid md:grid-cols-12 text-sm font-medium">
-                        <div className="col-span-6">Name</div>
-                        <div className="col-span-2">App</div>
-                        <div className="col-span-2">Size</div>
-                        <div className="col-span-2">Modified</div>
-                      </div>
-                      <div className="divide-y">
-                        {recentFiles.map((file) => (
-                          <motion.div
-                            key={file.name}
-                            whileHover={{ backgroundColor: "rgba(0,0,0,0.02)" }}
-                            className="p-3 md:grid md:grid-cols-12 items-center flex flex-col md:flex-row gap-3 md:gap-0"
-                          >
-                            <div className="col-span-6 flex items-center gap-3 w-full md:w-auto">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-muted">
-                                {file.icon}
-                              </div>
-                              <div>
-                                <p className="font-medium">{file.name}</p>
-                                {file.shared && (
-                                  <div className="flex items-center text-xs text-muted-foreground">
-                                    <Users className="mr-1 h-3 w-3" />
-                                    Shared with {file.collaborators} people
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <div className="col-span-2 text-sm md:text-base">{file.app}</div>
-                            <div className="col-span-2 text-sm md:text-base">{file.size}</div>
-                            <div className="col-span-2 flex items-center justify-between w-full md:w-auto">
-                              <span className="text-sm md:text-base">{file.modified}</span>
-                              <div className="flex gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl">
-                                  <Share2 className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-                </TabsContent>
-
-                <TabsContent value="projects" className="space-y-8 mt-0">
-                  <section>
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5 }}
-                      className="overflow-hidden rounded-3xl bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 p-8 text-white"
-                    >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div className="space-y-2">
-                          <h2 className="text-3xl font-bold">Project Management</h2>
-                          <p className="max-w-[600px] text-white/80">
-                            Organize your creative work into projects and collaborate with your team.
-                          </p>
-                        </div>
-                        <Button className="w-fit rounded-2xl bg-white text-indigo-700 hover:bg-white/90">
-                          <Plus className="mr-2 h-4 w-4" />
-                          New Project
-                        </Button>
-                      </div>
-                    </motion.div>
-                  </section>
-
-                  <div className="flex flex-wrap gap-3 mb-6">
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <Layers className="mr-2 h-4 w-4" />
-                      All Projects
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <Clock className="mr-2 h-4 w-4" />
-                      Recent
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <Users className="mr-2 h-4 w-4" />
-                      Shared
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <Archive className="mr-2 h-4 w-4" />
-                      Archived
-                    </Button>
-                    <div className="flex-1"></div>
-                    <div className="relative w-full md:w-auto mt-3 md:mt-0">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="search"
-                        placeholder="Search projects..."
-                        className="w-full rounded-2xl pl-9 md:w-[200px]"
-                      />
-                    </div>
-                  </div>
-
-                  <section className="space-y-4">
-                    <h2 className="text-2xl font-semibold">Active Projects</h2>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                      {projects.map((project) => (
-                        <motion.div key={project.name} whileHover={{ scale: 1.02, y: -5 }} whileTap={{ scale: 0.98 }}>
-                          <Card className="overflow-hidden rounded-3xl border hover:border-primary/50 transition-all duration-300">
-                            <CardHeader>
-                              <div className="flex items-center justify-between">
-                                <CardTitle>{project.name}</CardTitle>
-                                <Badge variant="outline" className="rounded-xl">
-                                  Due {project.dueDate}
-                                </Badge>
-                              </div>
-                              <CardDescription>{project.description}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span>Progress</span>
-                                  <span>{project.progress}%</span>
-                                </div>
-                                <Progress value={project.progress} className="h-2 rounded-xl" />
-                              </div>
-                              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                <div className="flex items-center">
-                                  <Users className="mr-1 h-4 w-4" />
-                                  {project.members} members
-                                </div>
-                                <div className="flex items-center">
-                                  <FileText className="mr-1 h-4 w-4" />
-                                  {project.files} files
-                                </div>
-                              </div>
-                            </CardContent>
-                            <CardFooter className="flex gap-2">
-                              <Button variant="secondary" className="flex-1 rounded-2xl">
-                                Open Project
-                              </Button>
-                              <Button variant="outline" size="icon" className="rounded-2xl bg-transparent">
-                                <Share2 className="h-4 w-4" />
-                              </Button>
-                            </CardFooter>
-                          </Card>
-                        </motion.div>
-                      ))}
-                      <motion.div whileHover={{ scale: 1.02, y: -5 }} whileTap={{ scale: 0.98 }}>
-                        <Card className="flex h-full flex-col items-center justify-center rounded-3xl border border-dashed p-8 hover:border-primary/50 transition-all duration-300">
-                          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                            <Plus className="h-6 w-6" />
-                          </div>
-                          <h3 className="text-lg font-medium">Create New Project</h3>
-                          <p className="mb-4 text-center text-sm text-muted-foreground">
-                            Start a new creative project from scratch or use a template
-                          </p>
-                          <Button className="rounded-2xl">New Project</Button>
-                        </Card>
-                      </motion.div>
-                    </div>
-                  </section>
-
-                  <section className="space-y-4">
-                    <h2 className="text-2xl font-semibold">Project Templates</h2>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                      <Card className="overflow-hidden rounded-3xl">
-                        <div className="aspect-video bg-gradient-to-br from-blue-500 to-purple-600 p-6 text-white">
-                          <h3 className="text-lg font-medium">Brand Identity</h3>
-                          <p className="text-sm text-white/80">Complete brand design package</p>
-                        </div>
-                        <CardFooter className="flex justify-between p-4">
-                          <Badge variant="outline" className="rounded-xl">
-                            Popular
-                          </Badge>
-                          <Button variant="ghost" size="sm" className="rounded-xl">
-                            Use Template
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                      <Card className="overflow-hidden rounded-3xl">
-                        <div className="aspect-video bg-gradient-to-br from-amber-500 to-red-600 p-6 text-white">
-                          <h3 className="text-lg font-medium">Marketing Campaign</h3>
-                          <p className="text-sm text-white/80">Multi-channel marketing assets</p>
-                        </div>
-                        <CardFooter className="flex justify-between p-4">
-                          <Badge variant="outline" className="rounded-xl">
-                            New
-                          </Badge>
-                          <Button variant="ghost" size="sm" className="rounded-xl">
-                            Use Template
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                      <Card className="overflow-hidden rounded-3xl">
-                        <div className="aspect-video bg-gradient-to-br from-green-500 to-teal-600 p-6 text-white">
-                          <h3 className="text-lg font-medium">Website Redesign</h3>
-                          <p className="text-sm text-white/80">Complete website design workflow</p>
-                        </div>
-                        <CardFooter className="flex justify-between p-4">
-                          <Badge variant="outline" className="rounded-xl">
-                            Featured
-                          </Badge>
-                          <Button variant="ghost" size="sm" className="rounded-xl">
-                            Use Template
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                      <Card className="overflow-hidden rounded-3xl">
-                        <div className="aspect-video bg-gradient-to-br from-pink-500 to-rose-600 p-6 text-white">
-                          <h3 className="text-lg font-medium">Product Launch</h3>
-                          <p className="text-sm text-white/80">Product launch campaign assets</p>
-                        </div>
-                        <CardFooter className="flex justify-between p-4">
-                          <Badge variant="outline" className="rounded-xl">
-                            Popular
-                          </Badge>
-                          <Button variant="ghost" size="sm" className="rounded-xl">
-                            Use Template
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                    </div>
-                  </section>
-                </TabsContent>
-
-                <TabsContent value="learn" className="space-y-8 mt-0">
-                  <section>
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5 }}
-                      className="overflow-hidden rounded-3xl bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 p-8 text-white"
-                    >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div className="space-y-2">
-                          <h2 className="text-3xl font-bold">Learn & Grow</h2>
-                          <p className="max-w-[600px] text-white/80">
-                            Expand your creative skills with tutorials, courses, and resources.
-                          </p>
-                        </div>
-                        <Button className="w-fit rounded-2xl bg-white text-emerald-700 hover:bg-white/90">
-                          <Crown className="mr-2 h-4 w-4" />
-                          Upgrade to Pro
-                        </Button>
-                      </div>
-                    </motion.div>
-                  </section>
-
-                  <div className="flex flex-wrap gap-3 mb-6">
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <Play className="mr-2 h-4 w-4" />
-                      All Tutorials
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      Courses
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <Lightbulb className="mr-2 h-4 w-4" />
-                      Tips & Tricks
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <TrendingUp className="mr-2 h-4 w-4" />
-                      Trending
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl bg-transparent">
-                      <Bookmark className="mr-2 h-4 w-4" />
-                      Saved
-                    </Button>
-                    <div className="flex-1"></div>
-                    <div className="relative w-full md:w-auto mt-3 md:mt-0">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="search"
-                        placeholder="Search tutorials..."
-                        className="w-full rounded-2xl pl-9 md:w-[200px]"
-                      />
-                    </div>
-                  </div>
-
-                  <section className="space-y-4">
-                    <h2 className="text-2xl font-semibold">Featured Tutorials</h2>
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                      {tutorials.slice(0, 3).map((tutorial) => (
-                        <motion.div key={tutorial.title} whileHover={{ scale: 1.02, y: -5 }} whileTap={{ scale: 0.98 }}>
-                          <Card className="overflow-hidden rounded-3xl">
-                            <div className="aspect-video overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 relative">
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <Button size="icon" variant="secondary" className="h-14 w-14 rounded-full">
-                                  <Play className="h-6 w-6" />
-                                </Button>
-                              </div>
-                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 text-white">
-                                <Badge className="bg-white/20 text-white hover:bg-white/30 rounded-xl">
-                                  {tutorial.category}
-                                </Badge>
-                                <h3 className="mt-2 text-lg font-medium">{tutorial.title}</h3>
-                              </div>
-                            </div>
-                            <CardContent className="p-4">
-                              <p className="text-sm text-muted-foreground">{tutorial.description}</p>
-                              <div className="mt-4 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarFallback>{tutorial.instructor.charAt(0)}</AvatarFallback>
-                                  </Avatar>
-                                  <span className="text-sm">{tutorial.instructor}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <Clock className="h-4 w-4" />
-                                  {tutorial.duration}
-                                </div>
-                              </div>
-                            </CardContent>
-                            <CardFooter className="flex items-center justify-between border-t p-4">
-                              <Badge variant="outline" className="rounded-xl">
-                                {tutorial.level}
-                              </Badge>
-                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                <Eye className="h-4 w-4" />
-                                {tutorial.views} views
-                              </div>
-                            </CardFooter>
-                          </Card>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </section>
-
-                  <section className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-2xl font-semibold">Popular Courses</h2>
-                      <Button variant="ghost" className="rounded-2xl">
-                        View All
-                      </Button>
-                    </div>
-                    <div className="rounded-3xl border overflow-hidden">
-                      <div className="divide-y">
-                        {tutorials.slice(3, 5).map((tutorial) => (
-                          <motion.div
-                            key={tutorial.title}
-                            whileHover={{ scale: 1.02, y: -5 }}
-                            whileTap={{ scale: 0.98 }}
-                            className="p-4 flex flex-col md:flex-row gap-3"
-                          >
-                            <div className="flex-shrink-0">
-                              <div className="relative h-20 w-20 overflow-hidden rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600">
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <Play className="h-8 w-8 text-white" />
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-medium">{tutorial.title}</h3>
-                              <p className="text-sm text-muted-foreground">{tutorial.description}</p>
-                              <div className="mt-2 flex flex-wrap items-center gap-3">
-                                <Badge variant="outline" className="rounded-xl">
-                                  {tutorial.level}
-                                </Badge>
-                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  {tutorial.duration}
-                                </div>
-                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                  <Eye className="h-3 w-3" />
-                                  {tutorial.views} views
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center">
-                              <Button variant="ghost" size="sm" className="rounded-xl">
-                                Watch Now
-                              </Button>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="space-y-4">
-                    <h2 className="text-2xl font-semibold">Learning Paths</h2>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                      <Card className="overflow-hidden rounded-3xl border-2 hover:border-primary/50 transition-all duration-300">
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <Badge className="rounded-xl bg-blue-500">Beginner</Badge>
-                            <Award className="h-5 w-5 text-amber-500" />
-                          </div>
-                          <CardTitle className="mt-2">UI/UX Design Fundamentals</CardTitle>
-                          <CardDescription>Master the basics of user interface and experience design</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span>8 courses • 24 hours</span>
-                              <span>4.8 ★</span>
-                            </div>
-                            <Progress value={30} className="h-2 rounded-xl" />
-                            <p className="text-xs text-muted-foreground">30% completed</p>
-                          </div>
-                        </CardContent>
-                        <CardFooter>
-                          <Button variant="secondary" className="w-full rounded-2xl">
-                            Continue Learning
-                          </Button>
-                        </CardFooter>
-                      </Card>
-
-                      <Card className="overflow-hidden rounded-3xl border-2 hover:border-primary/50 transition-all duration-300">
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <Badge className="rounded-xl bg-amber-500">Intermediate</Badge>
-                            <Award className="h-5 w-5 text-amber-500" />
-                          </div>
-                          <CardTitle className="mt-2">Digital Illustration Mastery</CardTitle>
-                          <CardDescription>Create stunning digital artwork and illustrations</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span>12 courses • 36 hours</span>
-                              <span>4.9 ★</span>
-                            </div>
-                            <Progress value={0} className="h-2 rounded-xl" />
-                            <p className="text-xs text-muted-foreground">Not started</p>
-                          </div>
-                        </CardContent>
-                        <CardFooter>
-                          <Button variant="secondary" className="w-full rounded-2xl">
-                            Start Learning
-                          </Button>
-                        </CardFooter>
-                      </Card>
-
-                      <Card className="overflow-hidden rounded-3xl border-2 hover:border-primary/50 transition-all duration-300">
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <Badge className="rounded-xl bg-red-500">Advanced</Badge>
-                            <Award className="h-5 w-5 text-amber-500" />
-                          </div>
-                          <CardTitle className="mt-2">Motion Graphics & Animation</CardTitle>
-                          <CardDescription>Create professional motion graphics and animations</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span>10 courses • 30 hours</span>
-                              <span>4.7 ★</span>
-                            </div>
-                            <Progress value={0} className="h-2 rounded-xl" />
-                            <p className="text-xs text-muted-foreground">Not started</p>
-                          </div>
-                        </CardContent>
-                        <CardFooter>
-                          <Button variant="secondary" className="w-full rounded-2xl">
-                            Start Learning
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                    </div>
-                  </section>
-                </TabsContent>
+                
               </motion.div>
             </AnimatePresence>
           </Tabs>
         </main>
-
-      {/* Patient Card Modal */}
-      {showPatientModal && selectedPatient && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-semibold text-gray-900">Szczegóły wizyty</h2>
-                  <p className="text-gray-600 mt-1">Pełne informacje o wizycie i pacjencie</p>
-                </div>
-                <Button variant="ghost" size="sm" onClick={closeModal} className="rounded-full">
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
-
-              {/* Visit Information */}
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">Informacje o wizycie</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Status</label>
-                    <div className="mt-1 flex gap-2">
-                      <Badge className="bg-blue-100 text-blue-800 rounded-full px-3 py-1">
-                        Potwierdzona
-                      </Badge>
-                      <Badge className="bg-green-100 text-green-800 rounded-full px-3 py-1">
-                        Odbyta
-                      </Badge>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Data i godzina</label>
-                    <p className="mt-1 text-gray-900 font-medium">sobota, 13 września 2025 12:45</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Lekarz</label>
-                    <div className="mt-1 flex items-center">
-                      <img
-                        src="/placeholder.svg?height=32&width=32"
-                        alt="Dr. Sylwia Klejnowska"
-                        className="w-8 h-8 rounded-full mr-2"
-                      />
-                      <span className="text-gray-900 font-medium">Sylwia Klejnowska</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Powód wizyty</label>
-                    <p className="mt-1 text-gray-900">--</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Patient Information */}
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">Dane osobowe pacjenta</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Imię i nazwisko</label>
-                    <p className="mt-1 text-gray-900 font-medium">{selectedVisit.patient}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Email</label>
-                    <p className="mt-1 text-gray-900">ola.gor109@gmail.com</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Numer telefonu</label>
-                    <p className="mt-1 text-gray-900">+48511067638</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Data urodzenia</label>
-                    <p className="mt-1 text-gray-900">19 kwietnia 2000</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Płeć</label>
-                    <p className="mt-1 text-gray-900">Kobieta</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Adres</label>
-                    <p className="mt-1 text-gray-900">Wesoła 48 Rybie</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Zawód</label>
-                    <p className="mt-1 text-gray-900">Pracownik</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Prowadzący</label>
-                    <p className="mt-1 text-gray-900">Sylwia Klejnowska</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Medical Information */}
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">Informacje medyczne</h3>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Ubezpieczyciel</label>
-                      <p className="mt-1 text-gray-900">NFZ</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Numer polisy</label>
-                      <p className="mt-1 text-gray-900">--</p>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Alergie</label>
-                    <p className="mt-1 text-green-600">Brak</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Orzechy</label>
-                    <p className="mt-1 text-gray-900">żadne</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Aktualnie przyjmowane leki</label>
-                    <p className="mt-1 text-gray-900">żadne</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Historia medyczna rodziny</label>
-                    <p className="mt-1 text-gray-900">żadne</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Przebyte choroby</label>
-                    <p className="mt-1 text-gray-900">żadne</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Privacy */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">Zgody i prywatność</h3>
-                <div className="flex items-center">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                  <span className="text-gray-900">Zgoda na politykę prywatności</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3">
-                <Button className="bg-yellow-600 hover:bg-yellow-600 text-white rounded-2xl flex-1">
-                  Notatka
-                </Button>
-                <Button className="bg-green-600 hover:bg-green-600 text-white rounded-2xl flex-1">
-                  Umów ponownie
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reschedule Modal */}
-      {modalType === "reschedule" && selectedVisit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-semibold text-gray-900">Przełóż Wizytę</h2>
-                  <p className="text-gray-600 mt-1">Proszę ustawić konkretną datę i godzinę wizyty.</p>
-                </div>
-                <Button variant="ghost" size="sm" onClick={closeModal} className="rounded-full">
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {/* Doctor Selection */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Lekarz</label>
-                  <div className="p-3 border rounded-2xl bg-gray-50 flex items-center justify-between">
-                    <div className="flex items-center">
-                      <img
-                        src="/placeholder.svg?height=32&width=32"
-                        alt="Sylwia Klejnowska"
-                        className="w-8 h-8 rounded-full mr-3"
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900">Sylwia Klejnowska</p>
-                        <p className="text-sm text-gray-600">Psycholog</p>
-                      </div>
-                    </div>
-                    <ChevronDown className="h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
-
-                {/* Date and Time */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Data i godzina</label>
-                  <div className="p-3 border rounded-2xl bg-white flex items-center justify-between">
-                    <span className="text-gray-900">15/09/2025 - 12:30</span>
-                    <X className="h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
-
-                {/* Visit Reason */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Powód wizyty</label>
-                  <textarea
-                    placeholder="Witam"
-                    className="w-full p-3 border rounded-2xl bg-white resize-none h-20"
-                  />
-                </div>
-
-                {/* Preferred Time */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Preferowane godziny</label>
-                  <textarea
-                    placeholder="Preferuję popołudniowe wizyty, jeśli to możliwe"
-                    className="w-full p-3 border rounded-2xl bg-white resize-none h-20"
-                  />
-                </div>
-
-                {/* Action Button */}
-                <Button className="w-full bg-green-600 hover:bg-green-600 text-white rounded-2xl py-3 mt-6">
-                  Przełóż wizytę
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Cancel Modal */}
-      {modalType === "cancel" && selectedVisit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-semibold text-gray-900">Anuluj Wizytę</h2>
-                  <p className="text-gray-600 mt-1">Czy na pewno chcesz anulować swoją wizytę?</p>
-    </div>
-                <Button variant="ghost" size="sm" onClick={closeModal} className="rounded-full">
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Powód anulowania</label>
-                  <textarea
-                    placeholder="Pilne spotkanie"
-                    className="w-full p-3 border rounded-2xl bg-white resize-none h-24"
-                  />
-                </div>
-
-                <Button className="w-full bg-red-600 hover:bg-red-600 text-white rounded-2xl py-3 mt-6">
-                  Anuluj wizytę
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Patient Card Modal */}
       {showPatientModal && selectedPatient && (
@@ -3233,8 +3949,16 @@ export function DesignaliCreative() {
                     </Button>
                   }
                 />
-                <Button variant="outline" className="rounded-2xl flex-1">
-                  Edytuj dane
+                <Button 
+                  variant="outline" 
+                  className="rounded-2xl flex-1 bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
+                  onClick={() => {
+                    if (confirm(`Czy na pewno chcesz usunąć pacjenta ${selectedPatient.name}?\n\nTa operacja jest nieodwracalna!`)) {
+                      handleDeletePatient()
+                    }
+                  }}
+                >
+                  Usuń pacjenta
                 </Button>
               </div>
             </div>
@@ -3242,8 +3966,401 @@ export function DesignaliCreative() {
         </div>
       )}
 
+      {/* Schedule Edit Modal */}
+      {showScheduleModal && selectedDoctor && (selectedDay !== null || selectedDate !== null) && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-semibold text-gray-900">Edytuj godziny pracy</h2>
+                  <p className="text-gray-600 mt-1">
+                    {selectedDoctor.name} - {
+                      selectedDate 
+                        ? selectedDate.toLocaleDateString('pl-PL', { 
+                            weekday: 'long', 
+                            day: 'numeric', 
+                            month: 'long', 
+                            year: 'numeric' 
+                          })
+                        : selectedDay !== null 
+                          ? ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota'][selectedDay]
+                          : ''
+                    }
+                  </p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowScheduleModal(false)} 
+                  className="rounded-full"
+                >
+                  <XIcon className="h-5 w-5" />
+                </Button>
+              </div>
+
+              {/* Room Selection - tylko dla pracy */}
+              {scheduleModalType === 'working' && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Wybierz gabinet</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {PREDEFINED_ROOMS.map((room) => (
+                    <div
+                      key={room.id}
+                      className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedRoom === room.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => setSelectedRoom(room.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                          style={{ backgroundColor: room.color }}
+                        />
+                        <span className="text-sm font-medium text-gray-900">{room.name}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                </div>
+              )}
+
+              {/* Tabs */}
+              <div className="flex gap-2 mb-6">
+                <Button
+                  variant={scheduleModalType === "working" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setScheduleModalType("working")}
+                  className={scheduleModalType === "working" ? "bg-purple-100 text-purple-700" : ""}
+                >
+                  Dzień pracujący
+                </Button>
+                <Button
+                  variant={scheduleModalType === "sick_leave" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setScheduleModalType("sick_leave")}
+                  className={scheduleModalType === "sick_leave" ? "bg-purple-100 text-purple-700" : ""}
+                >
+                  Zwolnienie
+                </Button>
+                <Button
+                  variant={scheduleModalType === "vacation" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setScheduleModalType("vacation")}
+                  className={scheduleModalType === "vacation" ? "bg-purple-100 text-purple-700" : ""}
+                >
+                  Urlop
+                </Button>
+              </div>
+
+              {/* Time Slots */}
+              <div className="space-y-4 mb-6">
+                {scheduleModalType === "working" ? (
+                  <>
+                    {/* Working Day Slots */}
+                    <div className="space-y-3">
+                      {modalTimeSlots.map((slot) => (
+                        <div key={slot.id} className="space-y-4 p-4 border border-gray-200 rounded-2xl">
+                          {/* Górna linia - godziny i typ wizyty */}
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-700">Od:</span>
+                              <input
+                                type="time"
+                                value={slot.startTime}
+                                onChange={(e) => updateTimeSlot(slot.id, 'startTime', e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-700">Do:</span>
+                              <input
+                                type="time"
+                                value={slot.endTime}
+                                onChange={(e) => updateTimeSlot(slot.id, 'endTime', e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateTimeSlot(slot.id, 'type', 'commercial')}
+                                className={slot.type === 'commercial' ? "bg-purple-100 text-purple-700 border-purple-200" : ""}
+                              >
+                                Komercyjne
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateTimeSlot(slot.id, 'type', 'nfz')}
+                                className={slot.type === 'nfz' ? "bg-purple-100 text-purple-700 border-purple-200" : ""}
+                              >
+                                NFZ
+                              </Button>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700 ml-auto"
+                              onClick={() => removeTimeSlot(slot.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          
+                          {/* Dolna linia - czas wizyty i stawka */}
+                          <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-700">Czas wizyty:</span>
+                              <input
+                                type="number"
+                                min="15"
+                                max="120"
+                                step="15"
+                                value={slot.appointmentDuration || 60}
+                                onChange={(e) => updateTimeSlot(slot.id, 'appointmentDuration', parseInt(e.target.value))}
+                                className="w-20 px-2 py-1 border border-gray-300 rounded text-center text-sm"
+                              />
+                              <span className="text-sm text-gray-600">min</span>
+                            </div>
+                            
+                            {slot.type === 'commercial' && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-700">Stawka:</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="10"
+                                  value={slot.consultationFee || 150}
+                                  onChange={(e) => updateTimeSlot(slot.id, 'consultationFee', parseInt(e.target.value))}
+                                  className="w-20 px-2 py-1 border border-gray-300 rounded text-center text-sm"
+                                />
+                                <span className="text-sm text-gray-600">PLN</span>
+                              </div>
+                            )}
+                            
+                            {slot.type === 'nfz' && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-700">NFZ:</span>
+                                <span className="text-sm text-gray-600">Za darmo</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      className="w-full border-dashed border-gray-300 text-gray-600 hover:bg-gray-50"
+                      onClick={addTimeSlot}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Dodaj kolejne godziny
+                    </Button>
+                  </>
+                ) : (
+                  /* Vacation/Sick Leave */
+                  <div className="p-6 border border-gray-200 rounded-2xl text-center">
+                    <p className="text-gray-600">
+                      {scheduleModalType === "vacation" ? "Dzień urlopu" : "Dzień zwolnienia"}
+                    </p>
+                  </div>
+      )}
     </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1 bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
+                  onClick={deleteSchedule}
+                >
+                  Usuń
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowScheduleModal(false)}
+                >
+                  Anuluj
+                </Button>
+                <Button
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={saveSchedule}
+                  disabled={isSavingSchedule}
+                >
+                  {isSavingSchedule ? "Zapisywanie..." : "Zapisz"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Employee Modal */}
+      {showAddEmployeeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-semibold text-gray-900">Dodaj specjalistę</h2>
+                  <p className="text-gray-600 mt-1">Dodaj nowego pracownika do systemu</p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowAddEmployeeModal(false)} 
+                  className="rounded-full"
+                >
+                  <XIcon className="h-5 w-5" />
+                </Button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Avatar Upload */}
+                <div className="text-center">
+                  <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                    {avatarPreview ? (
+                      <img 
+                        src={avatarPreview} 
+                        alt="Avatar preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Camera className="h-8 w-8 text-gray-400" />
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                    id="avatar-upload"
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="rounded-2xl"
+                    onClick={() => document.getElementById('avatar-upload')?.click()}
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Dodaj zdjęcie
+                  </Button>
+                </div>
+
+                {/* Form Fields */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Imię i Nazwisko</label>
+                  <input
+                    type="text"
+                    value={newSpecialist.name}
+                    onChange={(e) => handleSpecialistInputChange('name', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Wprowadź imię i nazwisko"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Stanowisko</label>
+                  <select 
+                    value={newSpecialist.specialization}
+                    onChange={(e) => handleSpecialistInputChange('specialization', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Wybierz stanowisko</option>
+                    <option value="psycholog">Psycholog</option>
+                    <option value="psychiatra">Psychiatra</option>
+                    <option value="terapeuta">Terapeuta</option>
+                    <option value="lekarz">Lekarz</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={newSpecialist.email}
+                    onChange={(e) => handleSpecialistInputChange('email', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="email@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Telefon</label>
+                  <input
+                    type="tel"
+                    value={newSpecialist.phone}
+                    onChange={(e) => handleSpecialistInputChange('phone', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="+48 123 456 789"
+                  />
+                </div>
+
+
+                <div>
+                  <p className="text-sm text-gray-600">
+                    Możesz ustawić indywidualny czas wizyty i stawkę dla każdego dnia. NFZ jest zawsze za darmo.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 mt-8">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowAddEmployeeModal(false)}
+                >
+                  Anuluj
+                </Button>
+                <Button
+                  onClick={handleAddSpecialist}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Dodaj specjalistę
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal szczegółów wizyty */}
+      {selectedVisit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl max-w-4xl max-h-[90vh] overflow-y-auto w-full mx-4">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold">Szczegóły wizyty</h2>
+                <button
+                  onClick={() => setSelectedVisit(null)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+    </div>
+              <AppointmentDetailsContent
+                appointment={selectedVisit}
+                userId={selectedVisit.userId}
+                patientId={selectedVisit.patient?.$id}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* System bezpieczeństwa */}
+      <SecurityPopup
+        isOpen={showSecurityPopup}
+        onClose={handleSecurityClose}
+        onSuccess={handleSecuritySuccess}
+      />
     </div>
   );
 };
-

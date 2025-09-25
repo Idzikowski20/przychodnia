@@ -9,42 +9,81 @@
 }
 
 @layer base {
+  /* Sofia Pro (lokalnie) */
+  @font-face {
+    font-family: 'Sofia Pro';
+    src: url('/fonts/sofia-pro/Sofia Pro Regular Az.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Sofia Pro';
+    src: url('/fonts/sofia-pro/Sofia Pro Medium Az.otf') format('opentype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Sofia Pro';
+    src: url('/fonts/sofia-pro/Sofia Pro Semi Bold Az.otf') format('opentype');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Sofia Pro';
+    src: url('/fonts/sofia-pro/Sofia Pro Bold Az.otf') format('opentype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+
   :root {
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Typografia */
+    --font-sans: 'Sofia Pro', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+    /* Paleta (HSL) zgodnie z makietą */
+    --cornflower: 238 93% 70%;   /* #6D71F9 */
+    --midnight: 231 30% 22%;     /* #272B48 */
+    --maya: 203 96% 66%;         /* #54C1FB */
+    --athens: 230 25% 95%;       /* #EFF0F6 */
+    --crystal: 0 0% 100%;        /* #FFFFFF */
+
+    --background: var(--athens);
+    --foreground: 228 15% 15%;
+    --card: var(--crystal);
+    --card-foreground: 228 15% 15%;
+    --popover: var(--crystal);
+    --popover-foreground: 228 15% 15%;
+    --primary: var(--cornflower);
+    --primary-foreground: 0 0% 100%;
+    --secondary: 228 15% 95%;
+    --secondary-foreground: 228 15% 20%;
+    --muted: 228 15% 93%;
+    --muted-foreground: 228 15% 45%;
+    --accent: 228 15% 96%;
+    --accent-foreground: 228 15% 20%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 228 15% 88%;
+    --input: 228 15% 88%;
+    --ring: var(--cornflower);
+    --chart-1: 238 93% 70%;
+    --chart-2: 203 96% 66%;
+    --chart-3: 231 30% 22%;
+    --chart-4: 150 60% 45%;
+    --chart-5: 32 95% 64%;
+    --radius: 0.9rem;
+    --sidebar-background: var(--athens);
+    --sidebar-foreground: 228 15% 20%;
+    --sidebar-primary: var(--cornflower);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 228 15% 93%;
+    --sidebar-accent-foreground: 228 15% 20%;
+    --sidebar-border: 228 15% 88%;
+    --sidebar-ring: var(--cornflower);
   }
   .dark {
     --background: 0 0% 3.9%;
@@ -89,6 +128,12 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Sofia Pro typographic scale from design */
+  .sp-h1 { font-family: var(--font-sans); font-weight: 600; font-size: 34px; line-height: 1.2; letter-spacing: -0.2px; }
+  .sp-h2 { font-family: var(--font-sans); font-weight: 600; font-size: 22px; line-height: 1.25; }
+  .sp-h3 { font-family: var(--font-sans); font-weight: 500; font-size: 18px; line-height: 1.3; }
+  .sp-body { font-family: var(--font-sans); font-weight: 400; font-size: 14px; line-height: 1.45; }
+  .sp-desc { font-family: var(--font-sans); font-weight: 400; font-size: 14px; line-height: 1.4; color: hsl(var(--muted-foreground)); }
 }
 
 /* ========================================== TAILWIND STYLES */

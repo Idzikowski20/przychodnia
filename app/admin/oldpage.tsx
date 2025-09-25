@@ -17,7 +17,7 @@ import { DataTable } from "@/components/table/DataTable";
 import { columns } from "@/components/table/columns";
 
 const AdminPage = () => {
-  const [activeSection, setActiveSection] = useState<"appointments" | "patients" | "specialists" | "office" | "payments" | "settings">("appointments");
+  const [activeSection, setActiveSection] = useState<"appointments" | "dashboard" | "patients" | "specialists" | "office" | "payments" | "settings">("appointments");
   const [appointments, setAppointments] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);

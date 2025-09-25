@@ -186,10 +186,20 @@ const RenderInput = ({ field, props }: { field: any; props: CustomProps }) => {
                 return props.availableTimes!.includes(`${h}:${m}`);
               } : undefined}
               filterDate={(date) => {
-                if (!props.workingDays || props.workingDays.length === 0) return true;
+                if (!props.workingDays || props.workingDays.length === 0) {
+                  console.log("📅 Brak workingDays - wszystkie daty dostępne");
+                  return true;
+                }
                 
                 const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-                return props.workingDays.includes(dayOfWeek);
+                const isAllowed = props.workingDays.includes(dayOfWeek);
+                
+                // Loguj tylko pierwsze 10 dat, żeby nie zaśmiecać konsoli
+                if (date.getDate() <= 10) {
+                  console.log(`📅 Data ${date.toDateString()} (${dayOfWeek}) - ${isAllowed ? 'DOZWOLONA' : 'BLOKOWANA'}. WorkingDays:`, props.workingDays);
+                }
+                
+                return isAllowed;
               }}
               className={`border-0 bg-transparent focus:ring-0 w-full ${
                 props.isAdminModal 

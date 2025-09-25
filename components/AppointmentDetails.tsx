@@ -135,46 +135,46 @@ export const AppointmentDetails = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600">Imię i nazwisko</label>
-                  <p className="text-gray-900">{appointment.patient.name}</p>
+                  <p className="text-gray-900">{appointment.patient?.name || "Brak danych"}</p>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600">Email</label>
-                  <p className="text-gray-900">{appointment.patient.email}</p>
+                  <p className="text-gray-900">{appointment.patient?.email || "Brak danych"}</p>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600">Numer telefonu</label>
-                  <p className="text-gray-900">{appointment.patient.phone}</p>
+                  <p className="text-gray-900">{appointment.patient?.phone || "Brak danych"}</p>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600">Data urodzenia</label>
-                  <p className="text-gray-900">{formatDateTime(appointment.patient.birthDate).dateOnly}</p>
+                  <p className="text-gray-900">{appointment.patient?.birthDate ? formatDateTime(appointment.patient.birthDate).dateOnly : "Brak danych"}</p>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600">Płeć</label>
                   <p className="text-gray-900">
-                    {appointment.patient.gender === "male" ? "Mężczyzna" :
-                     appointment.patient.gender === "female" ? "Kobieta" :
-                     appointment.patient.gender === "others" ? "Inna" : appointment.patient.gender}
+                    {appointment.patient?.gender === "male" ? "Mężczyzna" :
+                     appointment.patient?.gender === "female" ? "Kobieta" :
+                     appointment.patient?.gender === "others" ? "Inna" : appointment.patient?.gender}
                   </p>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600">Adres</label>
-                  <p className="text-gray-900">{appointment.patient.address}</p>
+                  <p className="text-gray-900">{appointment.patient?.address || "Brak danych"}</p>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600">Zawód</label>
-                  <p className="text-gray-900">{appointment.patient.occupation || "Nie podano"}</p>
+                  <p className="text-gray-900">{appointment.patient?.occupation || "Nie podano"}</p>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600">Lekarz prowadzący</label>
-                  <p className="text-gray-900">{appointment.patient.primaryPhysician}</p>
+                  <p className="text-gray-900">{appointment.patient?.primaryPhysician || "Brak danych"}</p>
                 </div>
               </div>
             </section>
@@ -188,12 +188,12 @@ export const AppointmentDetails = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600">Imię i nazwisko</label>
-                  <p className="text-gray-900">{appointment.patient.emergencyContactName}</p>
+                  <p className="text-gray-900">{appointment.patient?.emergencyContactName || "Brak danych"}</p>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600">Numer telefonu</label>
-                  <p className="text-gray-900">{appointment.patient.emergencyContactNumber}</p>
+                  <p className="text-gray-900">{appointment.patient?.emergencyContactNumber || "Brak danych"}</p>
                 </div>
               </div>
             </section>
@@ -207,39 +207,39 @@ export const AppointmentDetails = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600">Ubezpieczyciel</label>
-                  <p className="text-gray-900">{appointment.patient.insuranceProvider || "Nie podano"}</p>
+                  <p className="text-gray-900">{appointment.patient?.insuranceProvider || "Nie podano"}</p>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600">Numer polisy</label>
-                  <p className="text-gray-900">{appointment.patient.insurancePolicyNumber}</p>
+                  <p className="text-gray-900">{appointment.patient?.insurancePolicyNumber || "Brak danych"}</p>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-gray-600">Alergie</label>
                   <p className="text-gray-900 bg-gray-100 p-3 rounded-md">
-                    {appointment.patient.allergies || "Brak alergii"}
+                    {appointment.patient?.allergies || "Brak alergii"}
                   </p>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-gray-600">Aktualnie przyjmowane leki</label>
                   <p className="text-gray-900 bg-gray-100 p-3 rounded-md">
-                    {appointment.patient.currentMedication || "Brak leków"}
+                    {appointment.patient?.currentMedication || "Brak leków"}
                   </p>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-gray-600">Historia medyczna rodziny</label>
                   <p className="text-gray-900 bg-gray-100 p-3 rounded-md">
-                    {appointment.patient.familyMedicalHistory || "Brak informacji"}
+                    {appointment.patient?.familyMedicalHistory || "Brak informacji"}
                   </p>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-gray-600">Przebyte choroby</label>
                   <p className="text-gray-900 bg-gray-100 p-3 rounded-md">
-                    {appointment.patient.pastMedicalHistory || "Brak informacji"}
+                    {appointment.patient?.pastMedicalHistory || "Brak informacji"}
                   </p>
                 </div>
               </div>
@@ -253,7 +253,7 @@ export const AppointmentDetails = ({
               
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${appointment.patient.privacyConsent ? "bg-green-500" : "bg-red-500"}`} />
+                  <div className={`w-3 h-3 rounded-full ${appointment.patient?.privacyConsent ? "bg-green-500" : "bg-red-500"}`} />
                   <span className="text-gray-900">Zgoda na politykę prywatności</span>
                 </div>
               </div>
@@ -276,7 +276,7 @@ export const AppointmentDetails = ({
                     </button>
                     <ControlledAppointmentModal
                       userId={userId}
-                      patientId={patientId}
+                      patientId={patientId || appointment.userId}
                       type="create"
                       appointment={appointment}
                       title="Umów ponownie"
@@ -325,7 +325,7 @@ export const AppointmentDetails = ({
       {/* Modal akcji */}
       <ControlledAppointmentModal
         userId={userId}
-        patientId={patientId}
+        patientId={patientId || appointment.userId}
         type={actionType}
         appointment={appointment}
         title={

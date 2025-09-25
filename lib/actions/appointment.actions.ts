@@ -15,24 +15,27 @@ import { formatDateTime, parseStringify } from "../utils";
 
 import { getDoctors } from "./doctor.actions";
 import { getRooms } from "./room.actions";
+import { getPatient } from "./patient.actions";
 
 //  CREATE APPOINTMENT
 export const createAppointment = async (
   appointment: CreateAppointmentParams
 ) => {
   try {
-    // Znajdź gabinet przypisany do specjalisty i avatar lekarza
-    const [rooms, doctors] = await Promise.all([
+    // Znajdź gabinet przypisany do specjalisty, avatar lekarza i dane pacjenta
+    const [rooms, doctors, patient] = await Promise.all([
       getRooms(),
-      getDoctors()
+      getDoctors(),
+      getPatient(appointment.userId)
     ]);
     
     const specialistRoom = rooms.find((room: any) => room.assignedSpecialist === appointment.primaryPhysician);
     const doctor = doctors.find((doctor: any) => doctor.name === appointment.primaryPhysician);
     
-    // Przygotuj dane wizyty z informacjami o gabinecie i lekarzu
+    // Przygotuj dane wizyty z informacjami o gabinecie, lekarzu i pacjencie
     const appointmentData = {
       ...appointment,
+      // Usuń pole patient z appointmentData - będzie dodane automatycznie przez Appwrite
       roomId: specialistRoom?.$id || null,
       roomName: specialistRoom?.name || null,
       roomColor: specialistRoom?.color || null,
@@ -51,6 +54,7 @@ export const createAppointment = async (
     await sendSMSNotification(appointment.userId, smsMessage);
 
     revalidatePath("/admin");
+    revalidatePath("/patients");
     return parseStringify(newAppointment);
   } catch (error) {
     console.error("An error occurred while creating a new appointment:", error);
@@ -142,8 +146,17 @@ export const getRecentAppointmentList = async () => {
       initialCounts
     );
 
-    // Zaktualizuj wizyty z aktualnymi informacjami o gabinetach i lekarzach
-    const updatedAppointments = appointments.documents.map((appointment: any) => {
+    // Pobierz dane pacjentów dla wszystkich wizyt
+    const patientPromises = appointments.documents.map((appointment: any) => 
+      getPatient(appointment.userId)
+    );
+    const patients = await Promise.all(patientPromises);
+    
+    console.log("🔍 Pobrane dane pacjentów:", patients.length, "pacjentów");
+    console.log("🔍 Przykład danych pacjenta:", patients[0]);
+
+    // Zaktualizuj wizyty z aktualnymi informacjami o gabinetach, lekarzach i pacjentach
+    const updatedAppointments = appointments.documents.map((appointment: any, index: number) => {
       // Znajdź gabinet przypisany do specjalisty
       const specialistRoom = rooms.find((room: any) => 
         room.assignedSpecialist === appointment.primaryPhysician
@@ -154,13 +167,17 @@ export const getRecentAppointmentList = async () => {
         doctor.name === appointment.primaryPhysician
       );
       
+      // Pobierz dane pacjenta
+      const patient = patients[index];
+      
       return {
         ...appointment,
-        // Zawsze używaj aktualnych danych z gabinetów i lekarzy
+        // Zawsze używaj aktualnych danych z gabinetów, lekarzy i pacjentów
         roomId: specialistRoom?.$id || appointment.roomId,
         roomName: specialistRoom?.name || appointment.roomName,
         roomColor: specialistRoom?.color || appointment.roomColor,
         doctorAvatar: doctor?.avatar || appointment.doctorAvatar,
+        patient: patient || appointment.patient, // Użyj pobranych danych pacjenta lub fallback
       };
     });
 
@@ -204,6 +221,7 @@ export const updateAppointment = async ({
   type,
   note,
   adminNotes,
+  skipSMS = false,
 }: UpdateAppointmentParams) => {
   try {
     // Walidacja wymaganych parametrów
@@ -218,10 +236,40 @@ export const updateAppointment = async ({
     let updateData: any = {};
     
     if (appointment) {
-      updateData = appointment;
+      // Kopiuj tylko potrzebne pola z appointment, pomijając relacje i undefined
+      updateData = {};
+      
+      if (appointment.primaryPhysician !== undefined) updateData.primaryPhysician = appointment.primaryPhysician;
+      if (appointment.schedule !== undefined) updateData.schedule = appointment.schedule;
+      if (appointment.reason !== undefined) updateData.reason = appointment.reason;
+      if (appointment.note !== undefined) updateData.note = appointment.note;
+      if (appointment.cancellationReason !== undefined) updateData.cancellationReason = appointment.cancellationReason;
+      if (appointment.isCompleted !== undefined) updateData.isCompleted = appointment.isCompleted;
+      
+      // Upewnij się, że status jest tablicą
+      if (appointment.status) {
+        if (Array.isArray(appointment.status)) {
+          updateData.status = appointment.status;
+        } else {
+          updateData.status = [appointment.status];
+        }
+      }
+      
+      console.log("🔍 Update data before sending:", updateData);
     } else {
       if (note !== undefined) updateData.note = note;
       if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
+      
+      // Obsługa typu operacji
+      if (type === "cancel") {
+        updateData.status = ["cancelled"];
+      } else if (type === "schedule") {
+        updateData.status = ["accepted"];
+      } else if (type === "complete") {
+        updateData.status = ["completed"];
+      }
+      
+      console.log("🔍 Update data before sending:", updateData);
     }
 
     // Update appointment -> https://appwrite.io/docs/references/cloud/server-nodejs/databases#updateDocument
@@ -235,15 +283,18 @@ export const updateAppointment = async ({
     if (!updatedAppointment) throw Error;
 
     // Wyślij SMS tylko gdy aktualizujemy status wizyty, nie gdy dodajemy notatki
-    if (type && userId && timeZone && appointment) {
+    if (type && userId && timeZone && appointment && !skipSMS) {
       const smsMessage = `${type === "schedule" ? `Twoja wizyta została potwierdzona na ${formatDateTime(appointment.schedule!, timeZone).dateTime} z dr. ${appointment.primaryPhysician}` : `Z przykrością informujemy, że Twoja wizyta na ${formatDateTime(appointment.schedule!, timeZone).dateTime} została anulowana. Powód:  ${appointment.cancellationReason}`}.`;
       await sendSMSNotification(userId, smsMessage);
     }
 
     revalidatePath("/admin");
+    revalidatePath("/patients");
+    
     return parseStringify(updatedAppointment);
   } catch (error) {
     console.error("An error occurred while scheduling an appointment:", error);
+    throw error; // Re-throw the error so the caller can handle it
   }
 };
 
@@ -256,10 +307,19 @@ export const getAppointment = async (appointmentId: string) => {
       appointmentId
     );
 
-    return parseStringify(appointment);
+    // Pobierz dane pacjenta dla tej wizyty
+    const patient = await getPatient(appointment.userId);
+
+    // Zwróć wizytę z danymi pacjenta
+    const appointmentWithPatient = {
+      ...appointment,
+      patient: patient || appointment.patient, // Użyj pobranych danych pacjenta lub fallback
+    };
+
+    return parseStringify(appointmentWithPatient);
   } catch (error) {
     console.error(
-      "An error occurred while retrieving the existing patient:",
+      "An error occurred while retrieving the appointment:",
       error
     );
   }
@@ -282,7 +342,10 @@ export const getAppointmentsByPatient = async (userId: string) => {
 
     console.log("📋 Znalezione wizyty dla userId:", appointments.documents.length);
 
-    // Zaktualizuj wizyty z aktualnymi informacjami o gabinetach i lekarzach
+    // Pobierz dane pacjenta dla tego użytkownika
+    const patient = await getPatient(userId);
+
+    // Zaktualizuj wizyty z aktualnymi informacjami o gabinetach, lekarzach i pacjencie
     const updatedAppointments = appointments.documents.map((appointment: any) => {
       // Znajdź gabinet przypisany do specjalisty
       const specialistRoom = rooms.find((room: any) => 
@@ -296,11 +359,12 @@ export const getAppointmentsByPatient = async (userId: string) => {
       
       return {
         ...appointment,
-        // Zawsze używaj aktualnych danych z gabinetów i lekarzy
+        // Zawsze używaj aktualnych danych z gabinetów, lekarzy i pacjenta
         roomId: specialistRoom?.$id || appointment.roomId,
         roomName: specialistRoom?.name || appointment.roomName,
         roomColor: specialistRoom?.color || appointment.roomColor,
         doctorAvatar: doctor?.avatar || appointment.doctorAvatar,
+        patient: patient || appointment.patient, // Użyj pobranych danych pacjenta lub fallback
       };
     });
 
@@ -365,7 +429,22 @@ export const getAppointmentsByDoctorAndDate = async (doctorName: string, date: D
 
     console.log("📅 Wizyty w dniu", dateString, ":", dayAppointments.length);
 
-    return parseStringify(dayAppointments);
+    // Pobierz dane pacjentów dla wszystkich wizyt w tym dniu
+    const patientPromises = dayAppointments.map((appointment: any) => 
+      getPatient(appointment.userId)
+    );
+    const patients = await Promise.all(patientPromises);
+
+    // Zaktualizuj wizyty z danymi pacjentów
+    const appointmentsWithPatients = dayAppointments.map((appointment: any, index: number) => {
+      const patient = patients[index];
+      return {
+        ...appointment,
+        patient: patient || appointment.patient, // Użyj pobranych danych pacjenta lub fallback
+      };
+    });
+
+    return parseStringify(appointmentsWithPatients);
   } catch (error) {
     console.error("An error occurred while retrieving doctor appointments for date:", error);
     return [];
@@ -382,28 +461,22 @@ export const markAppointmentAsCompleted = async (appointmentId: string) => {
       appointmentId
     ) as Appointment;
 
-    // Pobierz obecne statusy
-    let currentStatuses: string[];
+    // Pobierz obecny status
+    let currentStatus: string;
     if (Array.isArray(currentAppointment.status)) {
-      currentStatuses = currentAppointment.status;
+      currentStatus = currentAppointment.status[0] || "awaiting";
     } else {
-      currentStatuses = currentAppointment.status.includes(',') 
-        ? currentAppointment.status.split(',').map((s: string) => s.trim()) 
-        : [currentAppointment.status];
+      currentStatus = currentAppointment.status || "awaiting";
     }
 
-    // Dodaj status "completed" jeśli go jeszcze nie ma
-    if (!currentStatuses.includes("completed")) {
-      currentStatuses.push("completed");
-    }
-
+    // Ustaw status na "completed"
     const updatedAppointment = await databases.updateDocument(
       DATABASE_ID!,
       APPOINTMENT_COLLECTION_ID!,
       appointmentId,
       {
         isCompleted: true,
-        status: currentStatuses
+        status: ["completed"]
       }
     );
 
@@ -488,5 +561,148 @@ export const updateAppointmentsWithRoomInfo = async () => {
   } catch (error) {
     console.error("Błąd podczas aktualizacji wizyt z informacjami o gabinecie:", error);
     return { success: false, error };
+  }
+};
+
+// DASHBOARD STATISTICS
+export const getDashboardStats = async () => {
+  try {
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    // Pobierz wszystkie wizyty z ostatnich 30 dni
+    const appointments = await databases.listDocuments(
+      DATABASE_ID!,
+      APPOINTMENT_COLLECTION_ID!,
+      [
+        Query.greaterThan("schedule", thirtyDaysAgo.toISOString()),
+        Query.orderDesc("schedule")
+      ]
+    );
+
+    // Pobierz wizyty na dzisiaj
+    const todayStart = new Date(today);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const todayAppointments = appointments.documents.filter((appointment: any) => {
+      const appointmentDate = new Date(appointment.schedule);
+      return appointmentDate >= todayStart && appointmentDate <= todayEnd;
+    });
+
+    // Policz statystyki
+    const stats = {
+      todayAppointments: todayAppointments.length,
+      todayScheduled: todayAppointments.filter((apt: any) => 
+        Array.isArray(apt.status) ? apt.status.includes('scheduled') : apt.status === 'scheduled'
+      ).length,
+      totalAppointments30Days: appointments.documents.length,
+      cancelledAppointments30Days: appointments.documents.filter((apt: any) => 
+        Array.isArray(apt.status) ? apt.status.includes('cancelled') : apt.status === 'cancelled'
+      ).length,
+      completedAppointments30Days: appointments.documents.filter((apt: any) => 
+        Array.isArray(apt.status) ? apt.status.includes('completed') : apt.status === 'completed'
+      ).length,
+    };
+
+    return parseStringify(stats);
+  } catch (error) {
+    console.error("Error getting dashboard stats:", error);
+    return {
+      todayAppointments: 0,
+      todayScheduled: 0,
+      totalAppointments30Days: 0,
+      cancelledAppointments30Days: 0,
+      completedAppointments30Days: 0,
+    };
+  }
+};
+
+// UPCOMING APPOINTMENTS
+export const getUpcomingAppointments = async (limit: number = 5) => {
+  try {
+    const now = new Date();
+    
+    // Pobierz nadchodzące wizyty (zaplanowane i zaakceptowane)
+    const appointments = await databases.listDocuments(
+      DATABASE_ID!,
+      APPOINTMENT_COLLECTION_ID!,
+      [
+        Query.greaterThan("schedule", now.toISOString()),
+        Query.orderAsc("schedule"),
+        Query.limit(limit)
+      ]
+    );
+
+    // Filtruj tylko wizyty ze statusem scheduled, accepted lub pending
+    const upcomingAppointments = appointments.documents.filter((appointment: any) => {
+      const status = appointment.status;
+      if (Array.isArray(status)) {
+        return status.includes('scheduled') || status.includes('accepted') || status.includes('pending');
+      }
+      return status === 'scheduled' || status === 'accepted' || status === 'pending';
+    });
+
+    return parseStringify(upcomingAppointments);
+  } catch (error) {
+    console.error("Error getting upcoming appointments:", error);
+    return [];
+  }
+};
+
+// REVENUE DATA
+export const getRevenueData = async (days: number = 30) => {
+  try {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - days);
+    
+    // Pobierz wizyty z ostatnich X dni
+    const appointments = await databases.listDocuments(
+      DATABASE_ID!,
+      APPOINTMENT_COLLECTION_ID!,
+      [
+        Query.greaterThan("schedule", startDate.toISOString()),
+        Query.lessThan("schedule", endDate.toISOString()),
+        Query.orderDesc("schedule")
+      ]
+    );
+
+    // Oblicz przychód (zakładając że każda wizyta to 200 zł)
+    const totalRevenue = appointments.documents.length * 200;
+    
+    // Oblicz przychód z poprzedniego okresu dla porównania
+    const previousStartDate = new Date();
+    previousStartDate.setDate(startDate.getDate() - days);
+    
+    const previousAppointments = await databases.listDocuments(
+      DATABASE_ID!,
+      APPOINTMENT_COLLECTION_ID!,
+      [
+        Query.greaterThan("schedule", previousStartDate.toISOString()),
+        Query.lessThan("schedule", startDate.toISOString()),
+        Query.orderDesc("schedule")
+      ]
+    );
+
+    const previousRevenue = previousAppointments.documents.length * 200;
+    const revenueGrowth = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+
+    return parseStringify({
+      totalRevenue,
+      previousRevenue,
+      revenueGrowth: Math.round(revenueGrowth),
+      appointmentsCount: appointments.documents.length
+    });
+  } catch (error) {
+    console.error("Error getting revenue data:", error);
+    return {
+      totalRevenue: 0,
+      previousRevenue: 0,
+      revenueGrowth: 0,
+      appointmentsCount: 0
+    };
   }
 };

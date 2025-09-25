@@ -14,16 +14,17 @@ import "react-phone-number-input/style.css";
 import CustomFormField, { FormFieldType } from "../CustomFormField";
 import SubmitButton from "../SubmitButton";
 
-export const PatientForm = () => {
+export const PatientForm = ({ initialPhone }: { initialPhone?: string }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const form = useForm<z.infer<typeof UserFormValidation>>({
     resolver: zodResolver(UserFormValidation),
     defaultValues: {
       name: "",
       email: "",
-      phone: "",
+      phone: initialPhone || "",
     },
   });
 
@@ -40,6 +41,7 @@ export const PatientForm = () => {
       const newUser = await createUser(user);
 
       if (newUser) {
+        setIsNavigating(true);
         router.push(`/patients/${newUser.$id}/register`);
       }
     } catch (error) {
@@ -85,7 +87,9 @@ export const PatientForm = () => {
           placeholder="+48 123 456 789"
         />
 
-        <SubmitButton isLoading={isLoading}>Rozpocznij</SubmitButton>
+        <SubmitButton isLoading={isLoading || isNavigating}>
+          {isNavigating ? "Przekierowywanie..." : "Rozpocznij"}
+        </SubmitButton>
       </form>
     </Form>
   );

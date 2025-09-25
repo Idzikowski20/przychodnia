@@ -37,7 +37,7 @@ export const columns: ColumnDef<Appointment>[] = [
     header: "Pacjent",
     cell: ({ row }) => {
       const appointment = row.original;
-      return <p className="text-14-medium ">{appointment.patient.name}</p>;
+      return <p className="text-14-medium ">{appointment.patient?.name || 'Brak danych'}</p>;
     },
   },
   {
@@ -137,7 +137,7 @@ export const columns: ColumnDef<Appointment>[] = [
           <AppointmentDetails
             appointment={appointment}
             userId={appointment.userId}
-            patientId={appointment.patient.$id}
+            patientId={appointment.patient?.$id || appointment.userId}
           />
           
           {(() => {
@@ -177,7 +177,7 @@ export const columns: ColumnDef<Appointment>[] = [
                 <>
                   <AppointmentNotesModal appointment={appointment} />
                   <AppointmentModal
-                    patientId={appointment.patient.$id}
+                    patientId={appointment.patient?.$id || appointment.userId}
                     userId={appointment.userId}
                     appointment={appointment}
                     type="create"
@@ -194,7 +194,7 @@ export const columns: ColumnDef<Appointment>[] = [
               <>
                 {hasAwaiting && (
                   <AppointmentModal
-                    patientId={appointment.patient.$id}
+                    patientId={appointment.patient?.$id || appointment.userId}
                     userId={appointment.userId}
                     appointment={appointment}
                     type="schedule"
@@ -205,7 +205,7 @@ export const columns: ColumnDef<Appointment>[] = [
                 )}
                 {hasAccepted && (
                   <AppointmentModal
-                    patientId={appointment.patient.$id}
+                    patientId={appointment.patient?.$id || appointment.userId}
                     userId={appointment.userId}
                     appointment={appointment}
                     type="plan"
@@ -224,7 +224,7 @@ export const columns: ColumnDef<Appointment>[] = [
                 )}
                 {!hasCancelled && (
                   <AppointmentModal
-                    patientId={appointment.patient.$id}
+                    patientId={appointment.patient?.$id || appointment.userId}
                     userId={appointment.userId}
                     appointment={appointment}
                     type="cancel"
