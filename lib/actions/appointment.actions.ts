@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ID, Query } from "node-appwrite";
 
 import { Appointment } from "@/types/appwrite.types";
+import { createRevenueForAppointment } from "./revenue.actions";
 
 import {
   APPOINTMENT_COLLECTION_ID,
@@ -187,7 +188,7 @@ export const getRecentAppointmentList = async () => {
     });
 
     const data = {
-      totalCount: appointmentsResult.total || appointmentsResult.documents.length,
+      totalCount: (appointmentsResult as any).total || appointmentsResult.documents.length,
       ...counts,
       documents: updatedAppointments,
     };
@@ -335,6 +336,24 @@ export const updateAppointment = async ({
       }
     }
 
+    // Utwórz wpis dochodów dla potwierdzonych/odbytych wizyt
+    if ((type === "schedule" || type === "complete") && appointment) {
+      try {
+        // Pobierz harmonogramy i sloty (można to zoptymalizować)
+        const schedulesResponse = await databases.listDocuments(DATABASE_ID!, "schedules");
+        const scheduleSlotsResponse = await databases.listDocuments(DATABASE_ID!, "scheduleSlots");
+        
+        await createRevenueForAppointment(
+          updatedAppointment, 
+          schedulesResponse.documents, 
+          scheduleSlotsResponse.documents
+        );
+      } catch (error) {
+        console.error("Błąd tworzenia wpisu dochodów:", error);
+        // Nie przerywamy procesu jeśli nie uda się utworzyć wpisu dochodów
+      }
+    }
+
     revalidatePath("/admin");
     revalidatePath("/patients");
     
@@ -355,12 +374,12 @@ export const getAppointment = async (appointmentId: string) => {
     );
 
     // Pobierz dane pacjenta dla tej wizyty
-    const patient = await getPatient(appointment.userId);
+    const patient = await getPatient((appointment as any).userId);
 
     // Zwróć wizytę z danymi pacjenta
     const appointmentWithPatient = {
       ...appointment,
-      patient: patient || appointment.patient, // Użyj pobranych danych pacjenta lub fallback
+      patient: patient || (appointment as any).patient, // Użyj pobranych danych pacjenta lub fallback
     };
 
     return parseStringify(appointmentWithPatient);

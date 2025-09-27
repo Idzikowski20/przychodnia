@@ -1,3 +1,5 @@
+"use client";
+
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
 import {
   Card,
@@ -93,7 +95,7 @@ export function ClippedAreaChart() {
           >
             <CartesianGrid
               vertical={false}
-              strokeDasharray="3 3"
+              strokeDasharray="3"
               horizontalCoordinatesGenerator={(props) => {
                 const { height } = props;
                 return [0, height - 30];
@@ -122,7 +124,7 @@ export function ClippedAreaChart() {
               x2={axis}
               y2={"85%"}
               stroke="var(--color-mobile)"
-              strokeDasharray="3 3"
+              strokeDasharray="3"
               strokeLinecap="round"
               strokeOpacity={0.2}
             />

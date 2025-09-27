@@ -180,6 +180,24 @@ export const getScheduleSlotsForDate = async (scheduleId: string, date: Date) =>
   }
 };
 
+// GET ALL SCHEDULE SLOTS
+export const getAllScheduleSlots = async () => {
+  try {
+    const slots = await databases.listDocuments(
+      DATABASE_ID!,
+      SCHEDULE_SLOT_COLLECTION_ID!,
+      [
+        Query.orderAsc("dayOfWeek"),
+        Query.limit(1000)
+      ]
+    );
+    return parseStringify(slots.documents);
+  } catch (error) {
+    console.error("An error occurred while retrieving all schedule slots:", error);
+    return [];
+  }
+};
+
 // UPDATE SCHEDULE SLOT
 export const updateScheduleSlot = async (
   slotId: string,

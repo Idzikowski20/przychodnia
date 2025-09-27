@@ -7,13 +7,14 @@ import { useActivityTracker } from "@/hooks/useActivityTracker"
 import { getRecentAppointmentList, markAppointmentAsCompleted, getDashboardStats, getUpcomingAppointments, getRevenueData, updateAppointment } from "@/lib/actions/appointment.actions"
 import { getPatients, updatePatient, deletePatient } from "@/lib/actions/patient.actions"
 import { getDoctors, createDoctor, updateDoctor } from "@/lib/actions/doctor.actions"
-import { getSchedules, getScheduleSlots, getScheduleSlotsForDate, createSchedule, createScheduleSlot, updateScheduleSlot, deleteScheduleSlot } from "@/lib/actions/schedule.actions"
+import { getSchedules, getScheduleSlots, getScheduleSlotsForDate, getAllScheduleSlots, createSchedule, createScheduleSlot, updateScheduleSlot, deleteScheduleSlot } from "@/lib/actions/schedule.actions"
 import { getTasks, createTask, updateTask, deleteTask, toggleTaskCompletion } from "@/lib/actions/task.actions"
 import { uploadFileToStorage } from "@/lib/upload"
 import { StatusBadge } from "@/components/StatusBadge"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
 import { useToast } from "@/components/ui/toast"
 import { useLoginSecurity } from "@/hooks/useLoginSecurity"
+import { RevenueAnalysis } from "@/components/RevenueAnalysis"
 
 // Predefiniowane gabinety
 const PREDEFINED_ROOMS = [
@@ -705,18 +706,15 @@ export function DesignaliCreative() {
   const fetchSchedules = async () => {
     try {
       const schedulesData = await getSchedules()
-
       setSchedules(schedulesData || [])
       
-      // Pobierz sloty dla wszystkich harmonogramów
-      const allSlots = []
-      for (const schedule of schedulesData || []) {
-        const slots = await getScheduleSlots(schedule.$id)
-
-        allSlots.push(...slots)
-      }
-
-      setScheduleSlots(allSlots)
+      // Pobierz wszystkie sloty jedną funkcją
+      const allSlots = await getAllScheduleSlots()
+      console.log("=== FETCH SCHEDULES DEBUG ===")
+      console.log("Schedules count:", schedulesData?.length || 0)
+      console.log("All slots count:", allSlots?.length || 0)
+      console.log("Sample slots:", allSlots?.slice(0, 3))
+      setScheduleSlots(allSlots || [])
     } catch (error) {
       console.error("Błąd podczas pobierania harmonogramów:", error)
     }
@@ -2568,67 +2566,11 @@ export function DesignaliCreative() {
                     {/* Lewa strona - 2 kolumny */}
                     <div className="lg:col-span-2 space-y-6">
                       {/* Wykres przychodu */}
-                      <Card>
-                        <CardHeader className="pb-4">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="sp-h3">Przychód</CardTitle>
-                            <div className="flex items-center gap-2">
-                              <Button variant="outline" size="sm" className="text-sm">
-                                Miesiąc
-                                <ChevronDown className="h-4 w-4 ml-1" />
-                              </Button>
-                            </div>
-                              </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="h-64 w-full">
-                            {revenueData.length > 0 ? (
-                              <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={revenueData}>
-                                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                  <XAxis 
-                                    dataKey="date" 
-                                    stroke="#666"
-                                    fontSize={12}
-                                    tickLine={false}
-                                    axisLine={false}
-                                  />
-                                  <YAxis 
-                                    stroke="#666"
-                                    fontSize={12}
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickFormatter={(value) => `${value}zł`}
-                                  />
-                                  <Tooltip />
-                                  <Line 
-                                    type="monotone" 
-                                    dataKey="amount" 
-                                    stroke="#3B82F6" 
-                                    strokeWidth={3}
-                                    dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
-                                    activeDot={{ r: 6, stroke: '#3B82F6', strokeWidth: 2 }}
-                                  />
-                                </LineChart>
-                              </ResponsiveContainer>
-                            ) : (
-                              <div className="h-full w-full bg-gray-50 rounded-xl flex flex-col items-center justify-center p-8">
-                                <div className="text-center">
-                                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4 mx-auto">
-                                    <Crown className="h-8 w-8 text-white" />
-                                  </div>
-                                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Odblokuj w subskrypcji Pro</h3>
-                                  <p className="text-gray-600 text-sm mb-4">Uzyskaj dostęp do szczegółowych analiz przychodu i raportów</p>
-                                  <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white">
-                                    <Crown className="h-4 w-4 mr-2" />
-                                    Upgrade do Pro
-                                  </Button>
-                                </div>
-                            </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <RevenueAnalysis 
+                        appointments={appointments?.documents || []} 
+                        schedules={schedules || []}
+                        scheduleSlots={scheduleSlots || []}
+                      />
 
                       {/* Lista zadań */}
                       <Card>
@@ -3033,7 +2975,7 @@ export function DesignaliCreative() {
                   <section className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h2 className="text-2xl font-semibold">
-                        {appointmentsView === "weekly" ? "Widok tygodniowy" : "Widok miesięczny"}
+                        {appointmentsView === "weekly" ? "" : ""}
                       </h2>
                       <div className="flex items-center gap-2">
                         {/* Przełącznik widoków */}
