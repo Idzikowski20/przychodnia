@@ -12,6 +12,14 @@ import { WorkingHours } from "@/types/appwrite.types";
 import { FileUploader } from "../FileUploader";
 import SubmitButton from "../SubmitButton";
 
+// Funkcja do odtwarzania dźwięku przycisku
+const playButtonSound = () => {
+  const audio = new Audio("/assets/sounds/button.mp3");
+  audio.play().catch((error) => {
+    console.error("Błąd odtwarzania dźwięku przycisku:", error);
+  });
+};
+
 const doctorSchema = z.object({
   name: z.string().min(2, "Imię i nazwisko musi mieć co najmniej 2 znaki"),
   email: z.string().email("Nieprawidłowy adres email"),
@@ -78,6 +86,7 @@ export const DoctorForm = ({ onSuccess, onCancel, isAdminModal = false }: Doctor
   });
 
   const onSubmit = async (data: DoctorFormData) => {
+    playButtonSound();
     setIsSubmitting(true);
     try {
       let avatarUrl = "";
@@ -312,7 +321,10 @@ export const DoctorForm = ({ onSuccess, onCancel, isAdminModal = false }: Doctor
         {onCancel && (
           <button
             type="button"
-            onClick={onCancel}
+            onClick={() => {
+              playButtonSound();
+              onCancel();
+            }}
             className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors font-medium"
           >
             Anuluj

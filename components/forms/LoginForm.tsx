@@ -9,6 +9,14 @@ import { useRouter } from "next/navigation";
 import { Form } from "@/components/ui/form";
 import CustomFormField, { FormFieldType } from "../CustomFormField";
 import SubmitButton from "../SubmitButton";
+
+// Funkcja do odtwarzania dźwięku przycisku
+const playButtonSound = () => {
+  const audio = new Audio("/assets/sounds/button.mp3");
+  audio.play().catch((error) => {
+    console.error("Błąd odtwarzania dźwięku przycisku:", error);
+  });
+};
 import { requestLoginCode, verifyLoginCode } from "@/lib/actions/auth.actions";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import {
@@ -82,6 +90,7 @@ export const LoginForm = ({ onSwitchToRegister, phoneForRegistration }: {
   };
 
   const onSubmit = async (values: z.infer<typeof LoginSchema>) => {
+    playButtonSound();
     if (!otpRequested) return handleRequestCode(values);
     if (code.length !== 6) {
       setError("Wpisz 6-cyfrowy kod.");
@@ -163,10 +172,16 @@ export const LoginForm = ({ onSwitchToRegister, phoneForRegistration }: {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={handleCloseDialog} className="bg-gray-500 hover:bg-gray-600">
+            <AlertDialogAction onClick={() => {
+              playButtonSound();
+              handleCloseDialog();
+            }} className="bg-gray-500 hover:bg-gray-600">
               Anuluj
             </AlertDialogAction>
-            <AlertDialogAction onClick={handleGoToRegister} className="bg-green-500 hover:bg-green-600">
+            <AlertDialogAction onClick={() => {
+              playButtonSound();
+              handleGoToRegister();
+            }} className="bg-green-500 hover:bg-green-600">
               Zarejestruj się
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -23,6 +23,16 @@ import "react-datepicker/dist/react-datepicker.css";
 import CustomFormField, { FormFieldType } from "../CustomFormField";
 import SubmitButton from "../SubmitButton";
 import { Form } from "../ui/form";
+import { AppointmentConfirmationModal } from "../AppointmentConfirmationModal";
+import { useToast } from "@/components/ui/toast";
+
+// Funkcja do odtwarzania dźwięku przycisku
+const playButtonSound = () => {
+  const audio = new Audio("/assets/sounds/button.mp3");
+  audio.play().catch((error) => {
+    console.error("Błąd odtwarzania dźwięku przycisku:", error);
+  });
+};
 
 export const AppointmentForm = ({
   userId,
@@ -31,6 +41,7 @@ export const AppointmentForm = ({
   appointment,
   setOpen,
   isAdminModal = false,
+  onUpdated,
 }: {
   userId: string;
   patientId: string;
@@ -38,8 +49,10 @@ export const AppointmentForm = ({
   appointment?: Appointment;
   setOpen?: Dispatch<SetStateAction<boolean>>;
   isAdminModal?: boolean;
+  onUpdated?: (payload: { id: string; status?: string[]; isCompleted?: boolean }) => void;
 }) => {
   const router = useRouter();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
@@ -47,6 +60,8 @@ export const AppointmentForm = ({
   const [workingDays, setWorkingDays] = useState<string[]>([]);
   const [schedules, setSchedules] = useState<any[]>([]);
   const [scheduleSlots, setScheduleSlots] = useState<any[]>([]);
+  const [doctorWorkingHours, setDoctorWorkingHours] = useState<{[key: string]: string}>({});
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
   // Load doctors and schedules on component mount
   useEffect(() => {
@@ -95,6 +110,25 @@ export const AppointmentForm = ({
       });
     }
   }, [selectedDoctor, schedules, scheduleSlots]);
+
+  // Update working hours for all doctors when date changes
+  useEffect(() => {
+    const updateAllDoctorHours = async () => {
+      if (doctors.length > 0 && schedules.length > 0 && scheduleSlots.length > 0) {
+        const selectedDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // Default to tomorrow
+        const hoursMap: {[key: string]: string} = {};
+        
+        for (const doctor of doctors) {
+          const hours = await getDoctorWorkingHours(doctor, selectedDate);
+          hoursMap[doctor.$id] = hours;
+        }
+        
+        setDoctorWorkingHours(hoursMap);
+      }
+    };
+    
+    updateAllDoctorHours();
+  }, [doctors, schedules, scheduleSlots]);
 
 
   // Generate available times based on doctor's schedule and existing appointments
@@ -185,6 +219,46 @@ export const AppointmentForm = ({
     }
   };
 
+  // Get working hours for a specific doctor on a specific date
+  const getDoctorWorkingHours = async (doctor: Doctor, date: Date) => {
+    try {
+      const doctorSchedule = schedules.find(schedule => schedule.doctorId === doctor.$id);
+      if (!doctorSchedule) {
+        return "Brak harmonogramu";
+      }
+
+      // Pobierz sloty dla konkretnej daty
+      const specificDateSlots = await getScheduleSlotsForDate(doctorSchedule.$id, date);
+      
+      // Jeśli nie ma slotów dla konkretnej daty, sprawdź sloty tygodniowe
+      let workingSlots = specificDateSlots;
+      if (workingSlots.length === 0) {
+        const dayOfWeek = date.getDay() === 0 ? 7 : date.getDay(); // Sunday = 7, Monday = 1
+        workingSlots = scheduleSlots.filter(slot => 
+          slot.scheduleId === doctorSchedule.$id && 
+          slot.dayOfWeek === dayOfWeek &&
+          slot.status === 'working'
+        );
+      }
+
+      if (workingSlots.length === 0) {
+        return "Niedostępny";
+      }
+
+      // Znajdź najwcześniejszą i najpóźniejszą godzinę
+      const startTimes = workingSlots.map((slot: any) => slot.startTime).sort();
+      const endTimes = workingSlots.map((slot: any) => slot.endTime).sort();
+      
+      const earliestStart = startTimes[0];
+      const latestEnd = endTimes[endTimes.length - 1];
+      
+      return `${earliestStart} - ${latestEnd}`;
+    } catch (error) {
+      console.error("Error getting doctor working hours:", error);
+      return "Błąd";
+    }
+  };
+
   // Get working days from doctor's schedule
   const getWorkingDays = (doctor: Doctor) => {
     try {
@@ -249,7 +323,7 @@ export const AppointmentForm = ({
         // Mapuj numery dni na nazwy dni dla slotów tygodniowych
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         
-        weeklySlots.forEach(slot => {
+        weeklySlots.forEach((slot: any) => {
           // Mapuj nasz system (1=poniedziałek, 7=niedziela) na JavaScript (0=niedziela, 1=poniedziałek)
           const jsDayIndex = slot.dayOfWeek === 7 ? 0 : slot.dayOfWeek;
           const dayName = dayNames[jsDayIndex];
@@ -276,7 +350,7 @@ export const AppointmentForm = ({
         // Dla slotów konkretnych dat, określ dni tygodnia na podstawie dat
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         
-        specificDateSlots.forEach(slot => {
+        specificDateSlots.forEach((slot: any) => {
           if (slot.specificDate) {
             const date = new Date(slot.specificDate);
             const dayName = dayNames[date.getDay()];
@@ -317,6 +391,18 @@ export const AppointmentForm = ({
       const times = await generateAvailableTimes(selectedDoctor, date);
       setAvailableTimes(times);
     }
+    
+    // Update working hours for all doctors when date changes
+    if (doctors.length > 0 && schedules.length > 0 && scheduleSlots.length > 0) {
+      const hoursMap: {[key: string]: string} = {};
+      
+      for (const doctor of doctors) {
+        const hours = await getDoctorWorkingHours(doctor, date);
+        hoursMap[doctor.$id] = hours;
+      }
+      
+      setDoctorWorkingHours(hoursMap);
+    }
   };
 
   const AppointmentFormValidation = getAppointmentSchema(type);
@@ -337,14 +423,17 @@ export const AppointmentForm = ({
   const onSubmit = async (
     values: z.infer<typeof AppointmentFormValidation>
   ) => {
+    // Dla typu schedule, pokaż modal potwierdzenia zamiast bezpośredniego submit
+    if (type === "schedule") {
+      setShowConfirmationModal(true);
+      return;
+    }
+
+    playButtonSound();
     setIsLoading(true);
 
     let status;
     switch (type) {
-      case "schedule": {
-        status = "accepted";
-        break;
-      }
       case "plan": {
         // Dla przełożenia, ustaw status na "scheduled"
         status = "scheduled";
@@ -402,13 +491,74 @@ export const AppointmentForm = ({
         const updatedAppointment = await updateAppointment(appointmentToUpdate);
 
         if (updatedAppointment) {
+          // Toast dla różnych typów operacji
+          if (type === "cancel") {
+            onUpdated?.({ id: appointment.$id, status: ["cancelled"] });
+            toast({
+              variant: "default",
+              title: "❌ Wizyta anulowana",
+              description: "Wizyta została pomyślnie anulowana."
+            });
+          } else if (type === "plan") {
+            onUpdated?.({ id: appointment.$id, status: ["scheduled"] });
+            toast({
+              variant: "default",
+              title: "📅 Wizyta przełożona",
+              description: "Wizyta została pomyślnie przełożona."
+            });
+          }
           setOpen && setOpen(false);
           form.reset();
         }
       }
     } catch (error) {
       console.error("An error occurred while scheduling an appointment:", error);
-      // Możesz dodać toast notification tutaj
+      toast({
+        variant: "destructive",
+        title: "Błąd operacji",
+        description: type === "cancel" ? "Nie udało się anulować wizyty." : 
+                    type === "plan" ? "Nie udało się przełożyć wizyty." : 
+                    "Wystąpił błąd podczas operacji na wizycie."
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmAppointment = async () => {
+    playButtonSound();
+    setIsLoading(true);
+
+    try {
+      if (!appointment?.$id) {
+        throw new Error("Appointment ID is required for update");
+      }
+
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Warsaw";
+      const updatedAppointment = await updateAppointment({
+        userId,
+        appointmentId: appointment.$id,
+        type: "schedule",
+        timeZone,
+      });
+
+      if (updatedAppointment) {
+        onUpdated?.({ id: appointment.$id, status: ["accepted"] });
+        toast({
+          variant: "default",
+          title: "✅ Wizyta potwierdzona",
+          description: "Wizyta została pomyślnie potwierdzona."
+        });
+        setOpen && setOpen(false);
+        form.reset();
+      }
+    } catch (error) {
+      console.error("An error occurred while confirming appointment:", error);
+      toast({
+        variant: "destructive",
+        title: "Błąd potwierdzania",
+        description: "Nie udało się potwierdzić wizyty. Spróbuj ponownie."
+      });
     } finally {
       setIsLoading(false);
     }
@@ -452,23 +602,40 @@ export const AppointmentForm = ({
               onValueChange={handleDoctorChange}
               isAdminModal={isAdminModal}
             >
-              {doctors.map((doctor, i) => (
-                <SelectItem key={doctor.$id + i} value={doctor.name}>
-                  <div className="flex cursor-pointer items-center gap-2">
-                <Image
-                  src={doctor.avatar || "/assets/images/dr-cameron.png"}
-                  width={32}
-                  height={32}
-                  alt="doctor"
-                  className="doctor-avatar border border-gray-200"
-                />
-                    <div>
-                      <p className="font-medium">{doctor.name}</p>
-                      <p className="text-sm text-gray-500">{doctor.specialization}</p>
+              {doctors.map((doctor, i) => {
+                const workingHours = doctorWorkingHours[doctor.$id] || "Sprawdzam...";
+                const isAvailable = workingHours !== "Niedostępny" && workingHours !== "Brak harmonogramu" && workingHours !== "Błąd";
+                
+                return (
+                  <SelectItem key={doctor.$id + i} value={doctor.name}>
+                    <div className="flex cursor-pointer items-center gap-2">
+                      <Image
+                        src={doctor.avatar || "/assets/images/dr-cameron.png"}
+                        width={32}
+                        height={32}
+                        alt="doctor"
+                        className="doctor-avatar border border-gray-200"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{doctor.name}</p>
+                            <p className="text-sm text-gray-500">{doctor.specialization}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-gray-900">
+                              {workingHours}
+                            </p>
+                            <p className={`text-xs ${isAvailable ? 'text-green-600' : 'text-red-600'}`}>
+                              {isAvailable ? 'Dostępny' : 'Niedostępny'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </SelectItem>
-              ))}
+                  </SelectItem>
+                );
+              })}
             </CustomFormField>
 
             <CustomFormField
@@ -484,18 +651,6 @@ export const AppointmentForm = ({
               workingDays={workingDays}
               isAdminModal={isAdminModal}
             />
-            
-            {/* Debug info */}
-            <div className="text-xs text-gray-500 mt-2 p-2 bg-yellow-100 rounded">
-              <div><strong>Debug Info:</strong></div>
-              <div>workingDays = {JSON.stringify(workingDays)}</div>
-              <div>selectedDoctor = {selectedDoctor?.name || 'brak'}</div>
-              <div>schedules count = {schedules.length}</div>
-              <div>scheduleSlots count = {scheduleSlots.length}</div>
-              {selectedDoctor && (
-                <div>doctor.$id = {selectedDoctor.$id}</div>
-              )}
-            </div>
 
             <div
               className={`flex flex-col gap-6  ${type === "create" && "xl:flex-row"}`}
@@ -541,6 +696,20 @@ export const AppointmentForm = ({
           {buttonLabel}
         </SubmitButton>
       </form>
+
+      {/* Modal potwierdzenia wizyty */}
+      {type === "schedule" && appointment && (
+        <AppointmentConfirmationModal
+          open={showConfirmationModal}
+          onOpenChange={setShowConfirmationModal}
+          appointment={appointment}
+          doctors={doctors}
+          doctorWorkingHours={doctorWorkingHours}
+          schedules={schedules}
+          scheduleSlots={scheduleSlots}
+          onConfirm={handleConfirmAppointment}
+        />
+      )}
     </Form>
   );
 };

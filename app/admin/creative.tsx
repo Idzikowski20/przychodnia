@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { SecurityPopup } from "@/components/SecurityPopup"
 import { useActivityTracker } from "@/hooks/useActivityTracker"
-import { getRecentAppointmentList, markAppointmentAsCompleted, getDashboardStats, getUpcomingAppointments, getRevenueData } from "@/lib/actions/appointment.actions"
+import { getRecentAppointmentList, markAppointmentAsCompleted, getDashboardStats, getUpcomingAppointments, getRevenueData, updateAppointment } from "@/lib/actions/appointment.actions"
 import { getPatients, updatePatient, deletePatient } from "@/lib/actions/patient.actions"
 import { getDoctors, createDoctor, updateDoctor } from "@/lib/actions/doctor.actions"
 import { getSchedules, getScheduleSlots, getScheduleSlotsForDate, createSchedule, createScheduleSlot, updateScheduleSlot, deleteScheduleSlot } from "@/lib/actions/schedule.actions"
@@ -24,7 +24,11 @@ const PREDEFINED_ROOMS = [
 import { AppointmentDetails } from "@/components/AppointmentDetails"
 import { AppointmentDetailsContent } from "@/components/AppointmentDetailsContent"
 import { AppointmentModal } from "@/components/AppointmentModal"
+import { AppointmentConfirmationModal } from "@/components/AppointmentConfirmationModal"
+import { AppointmentRescheduleModal } from "@/components/AppointmentRescheduleModal"
 import { AppointmentNotesModal } from "@/components/AppointmentNotesModal"
+import { WeeklyAppointmentsView } from "@/components/WeeklyAppointmentsView"
+import { MonthlyAppointmentsView } from "@/components/MonthlyAppointmentsView"
 import {
   Award,
   Bell,
@@ -204,6 +208,9 @@ export function DesignaliCreative() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [selectedVisit, setSelectedVisit] = useState<any>(null)
   const [modalType, setModalType] = useState<string | null>(null)
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false)
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false)
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null)
   
   // System bezpieczeństwa
   const [showSecurityPopup, setShowSecurityPopup] = useState(false)
@@ -221,6 +228,221 @@ export function DesignaliCreative() {
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [calendarExpanded, setCalendarExpanded] = useState(false)
+  const [appointmentsView, setAppointmentsView] = useState<"monthly" | "weekly">("weekly")
+  
+  // Hook do obsługi dźwięku i animacji tytułu
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const buttonAudioRef = useRef<HTMLAudioElement | null>(null)
+  const [isNewAppointment, setIsNewAppointment] = useState(false)
+  const [titleAnimation, setTitleAnimation] = useState(false)
+  const [lastAppointmentCount, setLastAppointmentCount] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return parseInt(localStorage.getItem('lastAppointmentCount') || '0')
+    }
+    return 0
+  })
+  const [audioEnabled, setAudioEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('audioEnabled') === 'true'
+    }
+    return false
+  })
+
+  // Funkcja do zapisywania stanu w localStorage
+  const setAudioEnabledWithStorage = (enabled: boolean) => {
+    setAudioEnabled(enabled)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('audioEnabled', enabled.toString())
+    }
+  }
+
+  // Funkcja do zapisywania liczby wizyt w localStorage
+  const setLastAppointmentCountWithStorage = (count: number) => {
+    setLastAppointmentCount(count)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lastAppointmentCount', count.toString())
+    }
+  }
+
+  // Przywróć autoplay po odświeżeniu strony
+  useEffect(() => {
+    if (audioEnabled && audioRef.current) {
+      // Odtwórz cichy dźwięk aby "odblokować" autoplay
+      audioRef.current.volume = 0.01
+      audioRef.current.play().then(() => {
+        audioRef.current!.volume = 1
+      }).catch((error) => {
+        console.error("❌ Błąd przywracania autoplay:", error)
+      })
+    }
+  }, [audioEnabled])
+
+  // Funkcja do aktywacji dźwięku (wymagana przez przeglądarkę)
+  const enableAudio = () => {
+    if (audioRef.current) {
+      // Odtwórz cichy dźwięk aby "odblokować" autoplay
+      audioRef.current.volume = 0.01
+      audioRef.current.play().then(() => {
+        setAudioEnabledWithStorage(true)
+        // Przywróć normalną głośność
+        audioRef.current!.volume = 1
+      }).catch((error) => {
+        console.error("❌ Błąd aktywacji dźwięku:", error)
+      })
+    }
+  }
+
+  // Funkcja do odtwarzania dźwięku
+  const playNotificationSound = () => {
+    if (!audioEnabled) {
+      return
+    }
+    
+    if (audioRef.current) {
+      
+      // Spróbuj odtworzyć dźwięk
+      const playPromise = audioRef.current.play()
+      
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          // Dźwięk odtworzony pomyślnie
+        }).catch((error) => {
+          console.error("❌ Błąd odtwarzania dźwięku:", error)
+          console.error("❌ Typ błędu:", error.name)
+          console.error("❌ Wiadomość:", error.message)
+          
+          // Jeśli błąd autoplay, spróbuj ponownie z interakcją
+          if (error.name === 'NotAllowedError') {
+            // Spróbuj odtworzyć cichy dźwięk aby odblokować autoplay
+            audioRef.current!.volume = 0.01
+            audioRef.current!.play().then(() => {
+              audioRef.current!.volume = 1
+              // Spróbuj ponownie odtworzyć główny dźwięk
+              audioRef.current!.play().catch(() => {
+                // Nadal nie można odtworzyć dźwięku
+              })
+            }).catch(() => {
+              // Nie można odblokować autoplay
+            })
+          }
+        })
+      }
+    } else {
+      console.error("❌ Audio element nie znaleziony!")
+    }
+  }
+
+  // Funkcja do odtwarzania dźwięku przycisku
+  const playButtonSound = () => {
+    if (buttonAudioRef.current) {
+      buttonAudioRef.current.play().catch((error) => {
+        console.error("Błąd odtwarzania dźwięku przycisku:", error)
+      })
+    }
+  }
+
+  // Funkcja do animacji tytułu
+  const animateTitle = () => {
+    setTitleAnimation(true)
+    setTimeout(() => setTitleAnimation(false), 5000) // 5 sekund animacji
+  }
+
+
+  // Monitorowanie nowych wizyt
+  useEffect(() => {
+    if (appointments?.documents) {
+      const currentCount = appointments.documents.length
+      
+      // Sprawdź czy to pierwsze ładowanie (lastAppointmentCount = 0)
+      if (lastAppointmentCount === 0) {
+        setLastAppointmentCountWithStorage(currentCount)
+        return
+      }
+      
+      if (currentCount > lastAppointmentCount) {
+        // Nowa wizyta została dodana
+        setIsNewAppointment(true)
+        
+        // Odtwórz dźwięk zawsze, niezależnie od stanu okna
+        playNotificationSound()
+        
+        // Sprawdź czy okno jest aktywne
+        if (document.hasFocus()) {
+          // Okno jest aktywne - animuj tytuł
+          animateTitle()
+          // Zatrzymaj animację po 5 sekundach
+          setTimeout(() => setIsNewAppointment(false), 5000)
+        } else {
+          // Okno nie jest aktywne - ustaw tytuł na "Nowa wizyta"
+          document.title = "Nowa wizyta!"
+          // Nie zatrzymuj animacji - zostanie zatrzymana gdy użytkownik wróci
+        }
+      }
+      setLastAppointmentCountWithStorage(currentCount)
+    }
+  }, [appointments])
+
+  // Obsługa powrotu użytkownika do okna
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isNewAppointment && !titleAnimation) {
+        // Użytkownik wrócił i jest nowa wizyta - odtwórz dźwięk i animuj tytuł
+        playNotificationSound()
+        animateTitle()
+        // Zatrzymaj animację po 5 sekundach
+        setTimeout(() => setIsNewAppointment(false), 5000)
+      }
+    }
+
+    const handleBlur = () => {
+      // Gdy użytkownik opuszcza okno, nie rób nic - tytuł zostanie "Nowa wizyta!"
+    }
+
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('blur', handleBlur)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('blur', handleBlur)
+    }
+  }, [isNewAppointment, titleAnimation])
+
+
+  // Automatyczne odświeżanie danych co 60 sekund
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const [appointmentsData, patientsData, doctorsData] = await Promise.all([
+          getRecentAppointmentList().catch(err => {
+            console.error("Błąd pobierania wizyt:", err)
+            return appointments // Zwróć poprzednie dane
+          }),
+          getPatients().catch(err => {
+            console.error("Błąd pobierania pacjentów:", err)
+            return patients || []
+          }),
+          getDoctors().catch(err => {
+            console.error("Błąd pobierania lekarzy:", err)
+            return doctors || []
+          })
+        ])
+        
+        if (appointmentsData) {
+          setAppointments(appointmentsData)
+        }
+        if (patientsData) {
+          setPatients(patientsData)
+        }
+        if (doctorsData) {
+          setDoctors(doctorsData)
+        }
+      } catch (error) {
+        console.error("❌ Błąd odświeżania danych:", error)
+      }
+    }, 10000) // 10 sekund
+
+    return () => clearInterval(interval)
+  }, [appointments, patients, doctors])
   const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
@@ -300,6 +522,23 @@ export function DesignaliCreative() {
     return
   }
 
+  // Zmiana tytułu strony
+  useEffect(() => {
+    if (titleAnimation) {
+      const interval = setInterval(() => {
+        document.title = document.title === "CarePulse" ? "Nowa wizyta!" : "CarePulse"
+      }, 500) // Zmiana co 500ms
+      
+      return () => {
+        clearInterval(interval)
+        // Nie resetuj tytułu automatycznie - zostanie zresetowany przez isNewAppointment
+      }
+    } else if (!isNewAppointment) {
+      // Resetuj tytuł tylko gdy nie ma nowej wizyty
+      document.title = "CarePulse"
+    }
+  }, [titleAnimation, isNewAppointment])
+
   const fetchAppointments = async () => {
     try {
       const appointmentsData = await getRecentAppointmentList()
@@ -328,21 +567,146 @@ export function DesignaliCreative() {
     }
   }
 
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
+
+  const handleConfirmAppointmentSubmit = async () => {
+    try {
+      if (!selectedAppointment?.$id) {
+        console.error('Brak ID wizyty do potwierdzenia');
+        return;
+      }
+
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Warsaw";
+      
+      // Optymistycznie zaznacz jako pending i zaktualizuj status lokalnie
+      setPendingIds(prev => new Set(prev).add(selectedAppointment.$id))
+      setAppointments((prev: any) => prev ? { ...prev, documents: prev.documents.map((a: any) => a.$id === selectedAppointment.$id ? { ...a, status: ["accepted"] } : a) } : prev)
+
+      // Backend w tle
+      updateAppointment({
+        appointmentId: selectedAppointment.$id,
+        userId: selectedAppointment.userId,
+        type: "schedule",
+        timeZone,
+      }).then(() => {
+        // Toast sukcesu po zakończeniu
+        toast({
+          variant: "default",
+          title: "✅ Wizyta potwierdzona",
+          description: "Wizyta została pomyślnie potwierdzona i pacjent otrzymał powiadomienie."
+        });
+      }).catch((error) => {
+        // Toast błędu i cofnij optymistyczną zmianę
+        console.error('❌ Błąd podczas potwierdzania wizyty:', error);
+        setAppointments((prev: any) => prev ? { ...prev, documents: prev.documents.map((a: any) => a.$id === selectedAppointment.$id ? { ...a, status: selectedAppointment.status } : a) } : prev)
+        toast({
+          variant: "destructive",
+          title: "Błąd potwierdzania",
+          description: "Nie udało się potwierdzić wizyty. Spróbuj ponownie."
+        });
+      }).finally(() => {
+        setPendingIds(prev => { const n = new Set(prev); n.delete(selectedAppointment.$id); return n })
+      })
+
+      // Zamknij modal bez przeładowania
+      setShowConfirmationModal(false);
+      setSelectedAppointment(null);
+    } catch (error) {
+      console.error('❌ Błąd podczas potwierdzania wizyty:', error);
+      toast({
+        variant: "destructive",
+        title: "Błąd",
+        description: "Wystąpił nieoczekiwany błąd podczas potwierdzania wizyty."
+      });
+    }
+  };
+
+  const handleConfirmAppointment = (visit: any) => {
+    setSelectedAppointment(visit);
+    setShowConfirmationModal(true);
+  };
+
+  const handleRescheduleAppointment = (visit: any) => {
+    setSelectedAppointment(visit);
+    setShowRescheduleModal(true);
+  };
+
+  const handleRescheduleSubmit = async (data: { doctorId: string; newDate: string; reason: string }) => {
+    try {
+      if (!selectedAppointment?.$id) {
+        console.error('Brak ID wizyty do przełożenia');
+        return;
+      }
+
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Warsaw";
+      const newDoctor = doctors.find(d => d.$id === data.doctorId);
+      const rescheduleNote = `Przełożenie wizyty: ${data.reason}`;
+      
+      // Optymistycznie zaktualizuj status lokalnie
+      setPendingIds(prev => new Set(prev).add(selectedAppointment.$id))
+      setAppointments((prev: any) => prev ? { 
+        ...prev, 
+        documents: prev.documents.map((a: any) => a.$id === selectedAppointment.$id ? { 
+          ...a, 
+          status: ["scheduled"], 
+          schedule: new Date(data.newDate),
+          primaryPhysician: newDoctor?.name || selectedAppointment.primaryPhysician,
+          rescheduleNote: rescheduleNote
+        } : a) 
+      } : prev)
+
+      // Backend w tle
+      await updateAppointment({
+        appointmentId: selectedAppointment.$id,
+        userId: selectedAppointment.userId,
+        appointment: {
+          primaryPhysician: newDoctor?.name || selectedAppointment.primaryPhysician,
+          schedule: new Date(data.newDate),
+          status: ["scheduled"],
+          rescheduleNote: rescheduleNote
+        },
+        type: "plan",
+        timeZone,
+      });
+
+      // Toast sukcesu
+      toast({
+        variant: "default",
+        title: "📅 Wizyta przełożona",
+        description: "Wizyta została pomyślnie przełożona."
+      });
+
+      setShowRescheduleModal(false);
+      setSelectedAppointment(null);
+    } catch (error) {
+      console.error('❌ Błąd podczas przełożenia wizyty:', error);
+      // Cofnij optymistyczną zmianę
+      setAppointments((prev: any) => prev ? { ...prev, documents: prev.documents.map((a: any) => a.$id === selectedAppointment.$id ? { ...a, status: selectedAppointment.status, schedule: selectedAppointment.schedule, primaryPhysician: selectedAppointment.primaryPhysician, rescheduleNote: selectedAppointment.rescheduleNote } : a) } : prev)
+      toast({
+        variant: "destructive",
+        title: "Błąd przełożenia",
+        description: "Nie udało się przełożyć wizyty. Spróbuj ponownie."
+      });
+    } finally {
+      setPendingIds(prev => { const n = new Set(prev); n.delete(selectedAppointment.$id); return n })
+    }
+  };
+
   // Schedule functions
   const fetchSchedules = async () => {
     try {
       const schedulesData = await getSchedules()
-      console.log("[fetchSchedules] schedules:", schedulesData?.length)
+
       setSchedules(schedulesData || [])
       
       // Pobierz sloty dla wszystkich harmonogramów
       const allSlots = []
       for (const schedule of schedulesData || []) {
         const slots = await getScheduleSlots(schedule.$id)
-        console.log("[fetchSchedules] schedule", schedule.$id, "slots:", slots?.length)
+
         allSlots.push(...slots)
       }
-      console.log("[fetchSchedules] total slots:", allSlots.length)
+
       setScheduleSlots(allSlots)
     } catch (error) {
       console.error("Błąd podczas pobierania harmonogramów:", error)
@@ -367,11 +731,11 @@ export function DesignaliCreative() {
 
       // Jeśli już istnieją sloty dla tego miesiąca, nie inicjalizuj ponownie
       if (hasExistingSlots) {
-        console.log("Harmonogram miesięczny już zainicjalizowany dla tego miesiąca")
+
         return
       }
 
-      console.log("Inicjalizacja harmonogramu miesięcznego...")
+
       
       for (const schedule of schedulesData) {
         const doctor = doctors.find(d => d.$id === schedule.doctorId)
@@ -418,7 +782,7 @@ export function DesignaliCreative() {
 
       // Odśwież dane
       await fetchSchedules()
-      console.log("Harmonogram miesięczny zainicjalizowany pomyślnie")
+
     } catch (error) {
       console.error("Błąd podczas inicjalizacji harmonogramu miesięcznego:", error)
     }
@@ -469,8 +833,8 @@ export function DesignaliCreative() {
       // Zamień polskie znaki na ASCII
       processedEmail = processedEmail.replace(/[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, (match) => polishToAscii[match] || match);
       
-      console.log("Oryginalny email:", newSpecialist.email);
-      console.log("Przetworzony email:", processedEmail);
+
+
 
       let avatarUrl = "";
       
@@ -496,7 +860,7 @@ export function DesignaliCreative() {
       }
 
       // Zapisz specjalistę
-      console.log("Dane do zapisania:", specialistData);
+
       const result = await createDoctor(specialistData)
       
       if (result) {
@@ -575,7 +939,7 @@ export function DesignaliCreative() {
         vacationDays: stats.vacationDays || 0,
         sickLeaveDays: stats.sickLeaveDays || 0,
         workingDays: stats.workingDays || 0,
-        remainingVacationDays: stats.remainingVacationDays || 21
+        remainingVacationDays: typeof stats.remainingVacationDays === 'number' ? stats.remainingVacationDays : 21
       }
     } catch (error) {
       console.error('Error fetching monthly stats:', error)
@@ -668,12 +1032,112 @@ export function DesignaliCreative() {
     return filtered
   }
 
+  // Funkcja sprawdzająca czy slot jest z przeszłości i czy to urlop/zwolnienie
+  const isPastVacationOrSickLeave = (slot: any, date?: Date) => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    let slotDate: Date
+    if (date) {
+      slotDate = new Date(date)
+    } else if (slot.specificDate) {
+      slotDate = new Date(slot.specificDate)
+    } else {
+      return false // Nie można określić daty
+    }
+    
+    slotDate.setHours(0, 0, 0, 0)
+    
+    return slotDate < today && (slot.status === 'vacation' || slot.status === 'sick_leave')
+  }
+
+  // Funkcja do analizy poprzednich stawek pracownika
+  const getDoctorHistoricalRates = (doctorId: string) => {
+    const doctorSlots = scheduleSlots.filter(slot => 
+      slot.doctorId === doctorId || 
+      schedules.find(s => s.$id === slot.scheduleId)?.doctorId === doctorId
+    )
+    
+    // Sortuj sloty według daty utworzenia (najnowsze pierwsze)
+    const sortedSlots = doctorSlots.sort((a, b) => {
+      const dateA = new Date(a.$createdAt || 0)
+      const dateB = new Date(b.$createdAt || 0)
+      return dateB.getTime() - dateA.getTime()
+    })
+    
+    const commercialRates: { rate: number, date: Date }[] = []
+    const durations: { duration: number, date: Date }[] = []
+    const timeRanges: { start: string, end: string, date: Date }[] = []
+    
+    sortedSlots.forEach(slot => {
+      if (slot.roomName) {
+        try {
+          const roomData = JSON.parse(slot.roomName)
+          const slotDate = new Date(slot.$createdAt || 0)
+          
+          if (roomData.consultationFee !== undefined) {
+            if (slot.type === 'commercial') {
+              commercialRates.push({ rate: roomData.consultationFee, date: slotDate })
+            }
+          }
+          if (roomData.appointmentDuration) {
+            durations.push({ duration: roomData.appointmentDuration, date: slotDate })
+          }
+        } catch (e) {
+          // Ignore parsing errors
+        }
+      }
+      
+      if (slot.startTime && slot.endTime) {
+        const slotDate = new Date(slot.$createdAt || 0)
+        timeRanges.push({ start: slot.startTime, end: slot.endTime, date: slotDate })
+      }
+    })
+    
+    // Weź najnowsze wartości zamiast średnich
+    const latestCommercialRate = commercialRates.length > 0 
+      ? commercialRates[0].rate
+      : 150
+    
+    const latestDuration = durations.length > 0
+      ? durations[0].duration
+      : 60
+    
+    // Weź najnowszy zakres godzin
+    const latestTimeRange = timeRanges.length > 0
+      ? timeRanges[0]
+      : { start: '08:00', end: '16:00', date: new Date() }
+    
+    return {
+      commercialRate: latestCommercialRate,
+      duration: latestDuration,
+      startTime: latestTimeRange.start,
+      endTime: latestTimeRange.end,
+      hasHistory: commercialRates.length > 0 || durations.length > 0 || timeRanges.length > 0
+    }
+  }
+
   const openScheduleModalForDate = async (doctor: any, date: Date) => {
     setSelectedDoctor(doctor)
     setSelectedDate(date)
     
     // Sprawdź czy istnieją sloty dla tej daty i pobierz gabinet z pierwszego slotu
     const daySlots = getDaySlotsForDate(doctor.$id, date)
+    
+    // Sprawdź czy wszystkie sloty to urlopy/zwolnienia z przeszłości
+    const allSlotsArePastVacationOrSickLeave = daySlots.length > 0 && 
+      daySlots.every(slot => isPastVacationOrSickLeave(slot, date))
+    
+    if (allSlotsArePastVacationOrSickLeave) {
+      // Tylko podgląd - nie otwieraj modala edycji
+      toast({
+        variant: "destructive",
+        title: "Tylko podgląd",
+        description: "Nie można edytować urlopów i zwolnień z przeszłości"
+      })
+      return
+    }
+    
     if (daySlots.length > 0 && daySlots[0].roomName) {
       let roomName = daySlots[0].roomName;
       try {
@@ -800,8 +1264,18 @@ export function DesignaliCreative() {
           setSelectedRoom(room ? room.id : null)
         }
       } else {
+        // Użyj inteligentnego sugerowania na podstawie historii
+        const historicalData = getDoctorHistoricalRates(doctor.$id)
+        
         setScheduleModalType('working')
-        setModalTimeSlots([])
+        setModalTimeSlots([{
+          id: 'new-1',
+          startTime: historicalData.startTime,
+          endTime: historicalData.endTime,
+          type: 'commercial',
+          appointmentDuration: historicalData.duration,
+          consultationFee: historicalData.commercialRate
+        }])
       }
     }
     
@@ -817,6 +1291,20 @@ export function DesignaliCreative() {
     let daySlots
     if (specificDate) {
       daySlots = getDaySlotsForDate(doctor.$id, specificDate)
+      
+      // Sprawdź czy wszystkie sloty to urlopy/zwolnienia z przeszłości
+      const allSlotsArePastVacationOrSickLeave = daySlots.length > 0 && 
+        daySlots.every(slot => isPastVacationOrSickLeave(slot, specificDate))
+      
+      if (allSlotsArePastVacationOrSickLeave) {
+        // Tylko podgląd - nie otwieraj modala edycji
+        toast({
+          variant: "destructive",
+          title: "Tylko podgląd",
+          description: "Nie można edytować urlopów i zwolnień z przeszłości"
+        })
+        return
+      }
     } else {
       daySlots = getDaySlots(doctor.$id, dayOfWeek)
     }
@@ -901,14 +1389,17 @@ export function DesignaliCreative() {
         }))
       }
     } else {
+      // Użyj inteligentnego sugerowania na podstawie historii
+      const historicalData = getDoctorHistoricalRates(doctor.$id)
+      
       setScheduleModalType('working')
         setModalTimeSlots([{
           id: 'new-1',
-          startTime: '08:00',
-          endTime: '16:00',
+        startTime: historicalData.startTime,
+        endTime: historicalData.endTime,
           type: 'commercial',
-          appointmentDuration: 60,
-          consultationFee: 150
+        appointmentDuration: historicalData.duration,
+        consultationFee: historicalData.commercialRate
         }])
     }
     
@@ -917,13 +1408,23 @@ export function DesignaliCreative() {
 
   const addTimeSlot = () => {
     const newId = `new-${Date.now()}`
-    setModalTimeSlots([...modalTimeSlots, {
-      id: newId,
+    
+    // Użyj inteligentnego sugerowania dla nowego slotu
+    const historicalData = selectedDoctor ? getDoctorHistoricalRates(selectedDoctor.$id) : {
+      commercialRate: 150,
+      duration: 60,
       startTime: '08:00',
       endTime: '16:00',
+      hasHistory: false
+    }
+    
+    setModalTimeSlots([...modalTimeSlots, {
+      id: newId,
+      startTime: historicalData.startTime,
+      endTime: historicalData.endTime,
       type: 'commercial',
-      appointmentDuration: 60,
-      consultationFee: 150
+      appointmentDuration: historicalData.duration,
+      consultationFee: historicalData.commercialRate
     }])
   }
 
@@ -994,7 +1495,7 @@ export function DesignaliCreative() {
         existingSlots = scheduleSlots.filter(slot => 
         slot.scheduleId === currentSchedule.$id && slot.dayOfWeek === selectedDay
       )
-        console.log("Usuwanie slotów dla dnia tygodnia:", selectedDay, existingSlots.length)
+
       }
       
       for (const slot of existingSlots) {
@@ -1017,7 +1518,7 @@ export function DesignaliCreative() {
       })
       
       if (scheduleModalType === 'working' && modalTimeSlots.length > 0) {
-        console.log("Tworzenie slotów pracy:", modalTimeSlots.length)
+
         for (const slot of modalTimeSlots) {
           const toLocalDateKey = (d: Date) => {
             const year = d.getFullYear();
@@ -1042,7 +1543,7 @@ export function DesignaliCreative() {
             }),
             roomColor: selectedRoomData?.color || undefined
           }
-          console.log("Tworzenie slotu:", slotData)
+
           await createScheduleSlot(slotData)
         }
       } else if (scheduleModalType === 'vacation') {
@@ -1083,7 +1584,7 @@ export function DesignaliCreative() {
           roomName: selectedRoomData?.name || undefined,
           roomColor: selectedRoomData?.color || undefined
         }
-        console.log("Tworzenie slotu urlopu:", slotData)
+
         await createScheduleSlot(slotData)
       } else if (scheduleModalType === 'sick_leave') {
         console.log("Tworzenie slotu zwolnienia", {
@@ -1110,10 +1611,10 @@ export function DesignaliCreative() {
           roomName: selectedRoomData?.name || undefined,
           roomColor: selectedRoomData?.color || undefined
         }
-        console.log("Tworzenie slotu zwolnienia:", slotData)
+
         await createScheduleSlot(slotData)
       } else {
-        console.log("Nieznany typ harmonogramu:", scheduleModalType)
+
       }
 
 
@@ -1121,16 +1622,16 @@ export function DesignaliCreative() {
       try {
         const { calculateAndUpdateStats } = await import('../../lib/actions/schedule.actions')
         await calculateAndUpdateStats(selectedDoctor.$id, selectedDate || monthCursor)
-        console.log("Statystyki przeliczone pomyślnie")
+
       } catch (e) {
         console.error('Recalculate after save failed:', e)
       }
 
       // Odśwież dane kalendarza oraz podsumowanie dla tego lekarza
-      console.log("Odświeżanie danych...")
+
       await fetchSchedules()
       await refreshDoctorMonthlyStats(selectedDoctor.$id)
-      console.log("Dane odświeżone pomyślnie")
+
       
       setShowScheduleModal(false)
       toast({ variant: "success", title: "Zapisano", description: "Zmiany w grafiku zostały zapisane" })
@@ -1144,6 +1645,24 @@ export function DesignaliCreative() {
 
   const deleteSchedule = async () => {
     if (!selectedDoctor || (!selectedDay && !selectedDate) || !currentSchedule) return
+
+    // Sprawdź czy można usunąć sloty (nie można usuwać starszych niż dzisiaj)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Ustaw na początek dnia
+    
+    if (selectedDate) {
+      const slotDate = new Date(selectedDate)
+      slotDate.setHours(0, 0, 0, 0)
+      
+      if (slotDate < today) {
+        toast({ 
+          variant: "destructive", 
+          title: "Nie można usunąć", 
+          description: "Nie można usuwać urlopów i zwolnień z przeszłości" 
+        })
+        return
+      }
+    }
 
     try {
       // Usuń wszystkie sloty dla tego dnia
@@ -1179,7 +1698,26 @@ export function DesignaliCreative() {
       await refreshDoctorMonthlyStats(selectedDoctor.$id)
       
       setShowScheduleModal(false)
-      console.log("Harmonogram usunięty pomyślnie")
+      
+      // Określ typ usuniętego slotu dla odpowiedniego komunikatu
+      let slotType = "harmonogram"
+      if (existingSlots.length > 0) {
+        const firstSlot = existingSlots[0]
+        if (firstSlot.status === 'vacation') {
+          slotType = "urlop"
+        } else if (firstSlot.status === 'sick_leave') {
+          slotType = "zwolnienie"
+        } else if (firstSlot.status === 'working') {
+          slotType = "dzień pracujący"
+        }
+      }
+      
+      toast({ 
+        variant: "success", 
+        title: "Usunięto pomyślnie", 
+        description: `${slotType.charAt(0).toUpperCase() + slotType.slice(1)} został usunięty z grafiku` 
+      })
+
     } catch (error) {
       console.error("Błąd podczas usuwania harmonogramu:", error)
       toast({ variant: "destructive", title: "Błąd", description: "Nie udało się usunąć dnia z grafiku" })
@@ -1257,11 +1795,11 @@ export function DesignaliCreative() {
     if (!selectedPatient) return
 
     try {
-      console.log("Zapisywanie pola:", field, "Wartość:", editValue)
+
       
       // Aktualizuj pacjenta w bazie danych
       const result = await updatePatient(selectedPatient.$id, { [field]: editValue })
-      console.log("Wynik updatePatient:", result)
+
       
       // Aktualizuj lokalny stan
       setSelectedPatient({
@@ -1284,7 +1822,7 @@ export function DesignaliCreative() {
       setEditingField(null)
       setEditValue("")
       
-      console.log("Pole zapisane pomyślnie")
+
     } catch (error) {
       console.error("Błąd podczas aktualizacji pacjenta:", error)
     }
@@ -1294,7 +1832,7 @@ export function DesignaliCreative() {
     if (!selectedPatient) return
 
     try {
-      console.log("Usuwanie pacjenta:", selectedPatient.name)
+
       
       // Usuń pacjenta z bazy danych
       await deletePatient(selectedPatient.$id)
@@ -1307,7 +1845,7 @@ export function DesignaliCreative() {
       setShowPatientModal(false)
       setSelectedPatient(null)
       
-      console.log("Pacjent usunięty pomyślnie")
+
     } catch (error) {
       console.error("Błąd podczas usuwania pacjenta:", error)
       toast({ variant: "destructive", title: "Błąd", description: "Nie udało się usunąć pacjenta" })
@@ -1374,7 +1912,10 @@ export function DesignaliCreative() {
               )}
               <Button
                 size="sm"
-                onClick={() => saveField(field)}
+                onClick={() => {
+                  playButtonSound()
+                  saveField(field)
+                }}
                 className="bg-green-600 hover:bg-green-700 text-white p-1"
               >
                 <Save className="h-4 w-4" />
@@ -1382,7 +1923,10 @@ export function DesignaliCreative() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={cancelEditing}
+                onClick={() => {
+                  playButtonSound()
+                  cancelEditing()
+                }}
                 className="p-1"
               >
                 <XIcon className="h-4 w-4" />
@@ -1596,7 +2140,8 @@ export function DesignaliCreative() {
       const isCancelled = statuses.includes('cancelled')
       const isAwaiting = statuses.includes('awaiting') || statuses.includes('pending')
       const isAccepted = statuses.includes('accepted')
-      return !isCompleted && !isCancelled && (isAwaiting || isAccepted)
+      const isScheduled = statuses.includes('scheduled')
+      return !isCompleted && !isCancelled && (isAwaiting || isAccepted || isScheduled)
     })
     .sort((a: any, b: any) => new Date(a.schedule).getTime() - new Date(b.schedule).getTime())
     .slice(startIndex, endIndex)
@@ -1644,6 +2189,7 @@ export function DesignaliCreative() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
+
       {/* Animated gradient background */}
       <motion.div
         className="absolute inset-0 -z-10 opacity-20"
@@ -1772,6 +2318,43 @@ export function DesignaliCreative() {
               ))}
             </div>
           </ScrollArea>
+
+          {/* Sekcja powiadomień */}
+          <div className="border-t p-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-3">
+                  <Bell className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">Powiadomienia</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      id="notification-toggle"
+                      checked={audioEnabled}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          enableAudio()
+                        } else {
+                          setAudioEnabledWithStorage(false)
+                        }
+                      }}
+                      className="sr-only"
+                    />
+                    <label
+                      htmlFor="notification-toggle"
+                      className={`border rounded-full border-gray-300 flex items-center cursor-pointer w-12 transition-all duration-300 ease-in-out ${
+                        audioEnabled ? 'bg-green-500 justify-end' : 'justify-start'
+                      }`}
+                    >
+                      <span className="rounded-full border w-6 h-6 border-gray-300 shadow-inner bg-white shadow transition-all duration-300 ease-in-out"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div className="border-t p-3">
             <div className="space-y-1">
@@ -2137,11 +2720,6 @@ export function DesignaliCreative() {
                                                   <span className="text-sm font-medium text-gray-900">
                                                     {appointment.patient?.name || 'Pacjent'}
                                                   </span>
-                                                  {isToday && (
-                                                    <span className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-full">
-                                                      Dzisiaj
-                                                    </span>
-                                                  )}
                                                 </div>
                                               <div className="grid grid-cols-2 gap-3 mt-1 text-sm">
                                                 <span className="text-gray-500">
@@ -2151,6 +2729,14 @@ export function DesignaliCreative() {
                                                   {appointmentDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
                                                   </span>
                                                 </div>
+                                                {/* Badge "Dzisiaj" pod datą */}
+                                                {isToday && (
+                                                  <div className="mt-2">
+                                                    <span className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-full">
+                                                      Dzisiaj
+                                                    </span>
+                                                  </div>
+                                                )}
                                               </div>
                                             </div>
                                             
@@ -2262,16 +2848,16 @@ export function DesignaliCreative() {
                                                   }
                                                   if (hasAwaiting) {
                                                     return (
-                                                      <AppointmentModal
-                                                        patientId={appointment.patient.$id}
-                                                        userId={appointment.userId}
-                                                        appointment={appointment}
-                                                        type="schedule"
-                                                        title="Potwierdź wizytę"
-                                                        description="Potwierdź termin i szczegóły wizyty."
-                                                        isAdminModal={true}
-                                                        trigger={<Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">Potwierdź wizytę</Button>}
-                                                      />
+                                                      <Button 
+                                                        size="sm" 
+                                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                        onClick={() => {
+                                                          setSelectedAppointment(appointment);
+                                                          setShowConfirmationModal(true);
+                                                        }}
+                                                      >
+                                                        Potwierdź wizytę
+                                                      </Button>
                                                     )
                                                   }
                                                   return null
@@ -2425,29 +3011,59 @@ export function DesignaliCreative() {
 
                   <section className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-2xl font-semibold">{calendarExpanded ? 'Pełen miesiąc' : 'Ten tydzień'}</h2>
-                      <Button 
-                        variant="ghost" 
-                        className="rounded-2xl flex items-center gap-2"
-                        onClick={() => setCalendarExpanded(!calendarExpanded)}
-                      >
-                        {calendarExpanded ? "Zwiń" : "Rozwiń"}
-                        <ChevronDown className={`h-4 w-4 transition-transform ${calendarExpanded ? 'rotate-180' : ''}`} />
-                      </Button>
+                      <h2 className="text-2xl font-semibold">
+                        {appointmentsView === "weekly" ? "Widok tygodniowy" : "Widok miesięczny"}
+                      </h2>
+                      <div className="flex items-center gap-2">
+                        {/* Przełącznik widoków */}
+                        <div className="flex bg-gray-100 rounded-lg p-1">
+                          <Button
+                            variant={appointmentsView === "monthly" ? "default" : "ghost"}
+                            size="sm"
+                            onClick={() => setAppointmentsView("monthly")}
+                            className="rounded-md"
+                          >
+                            <Calendar className="h-4 w-4 mr-2" />
+                            Miesięczny
+                          </Button>
+                          <Button
+                            variant={appointmentsView === "weekly" ? "default" : "ghost"}
+                            size="sm"
+                            onClick={() => setAppointmentsView("weekly")}
+                            className="rounded-md"
+                          >
+                            <LayoutGrid className="h-4 w-4 mr-2" />
+                            Tygodniowy
+                          </Button>
+                        </div>
+                      </div>
                     </div>
 
-                    <Card className="rounded-3xl bg-white border-gray-200 p-6">
-                      {/* Pasek nawigacji miesiąca + wybór miesiąca/roku (tylko w trybie miesiąca) */}
-                      {calendarExpanded && (
+                    {appointmentsView === "weekly" ? (
+                      <WeeklyAppointmentsView 
+                        appointments={appointments?.documents || []}
+                        doctors={doctors}
+                        onAppointmentClick={(appointment) => setSelectedVisit(appointment)}
+                      />
+                    ) : appointmentsView === "monthly" ? (
+                      <MonthlyAppointmentsView 
+                        appointments={appointments?.documents || []}
+                        doctors={doctors}
+                        onAppointmentClick={(appointment) => setSelectedVisit(appointment)}
+                      />
+                    ) : (
+                      <Card className="rounded-3xl bg-white border-gray-200 p-6">
+                        {/* Pasek nawigacji miesiąca + wybór miesiąca/roku (tylko w trybie miesiąca) */}
+                        {calendarExpanded && (
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1))}>
+                            <Button variant="outline" size="sm" onClick={() => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1))}>
                               <ChevronLeft className="h-4 w-4" />
                             </Button>
-                            <div className="text-sm font-medium text-gray-900 min-w-[160px] text-center">
+                            <div className="px-4 py-2 text-sm font-medium text-gray-900 min-w-[160px] text-center  rounded-md">
                               {monthCursor.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
                             </div>
-                            <Button variant="ghost" size="sm" onClick={() => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1))}>
+                            <Button variant="outline" size="sm" onClick={() => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1))}>
                               <ChevronRight className="h-4 w-4" />
                             </Button>
                           </div>
@@ -2506,9 +3122,9 @@ export function DesignaliCreative() {
                                   }).slice(0, 3) // pokaż max 3
                               
                               return (
-                                    <div key={`${idx}-${di}`} className={`min-h-[120px] p-2 rounded-[12px] ${isToday ? 'border-2 border-primary bg-white' : 'bg-gray-50'}`}>
-                                      <div className={`text-lg font-medium mb-2 ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}`}>{dayNumber}</div>
-                                      <div className="space-y-2">
+                                    <div key={`${idx}-${di}`} className={`h-32 p-2 rounded-[12px] flex flex-col ${isToday ? 'border-2 border-primary bg-white' : isCurrentMonth ? 'bg-gray-100' : 'bg-gray-150'}`}>
+                                      <div className={`text-lg font-medium mb-2 flex-shrink-0 ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}`}>{dayNumber}</div>
+                                      <div className="space-y-2 flex-1 overflow-hidden">
                                         {dayAppointments.map((apt: any, i2: number) => {
                                           const d = new Date(apt.schedule)
                                           const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
@@ -2535,8 +3151,8 @@ export function DesignaliCreative() {
                                           }
                                           
                                           // Debug: sprawdź dane wizyty
-                                          console.log('Monthly apt:', apt.primaryPhysician, 'roomName:', apt.roomName, 'roomColor:', apt.roomColor)
-                                          console.log('Full apt object:', apt)
+
+
                                       return (
                                         <div 
                                               key={i2}
@@ -2628,14 +3244,14 @@ export function DesignaliCreative() {
                             }) || [];
                           const isToday = day.toDateString() === new Date().toDateString();
                               return (
-                            <div key={i} className={`min-h-[120px] p-2 rounded-[20px] ${isToday ? 'border-2 border-blue-400 bg-blue-50 ring-2 ring-blue-200' : 'bg-gray-50'}`}>
-                              <div className={`text-lg font-medium mb-2 ${isToday ? 'text-blue-900 font-bold' : 'text-gray-900'}`}>
+                            <div key={i} className={`h-32 p-2 rounded-[20px] flex flex-col ${isToday ? 'border-2 border-blue-400 bg-blue-50 ring-2 ring-blue-200' : 'bg-gray-50'}`}>
+                              <div className={`text-lg font-medium mb-2 flex-shrink-0 ${isToday ? 'text-blue-900 font-bold' : 'text-gray-900'}`}>
                                 {day.getDate()}
                                 {isToday && (
                                   <span className="text-xs text-blue-600 font-medium ml-1">Dziś</span>
                                 )}
                               </div>
-                          <div className="space-y-1">
+                          <div className="space-y-1 flex-1 overflow-hidden">
                                 {dayAppointments.map((appointment: any, index: number) => {
                               const date = new Date(appointment.schedule);
                               const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
@@ -2694,7 +3310,8 @@ export function DesignaliCreative() {
                           </div>
                         </>
                       )}
-                    </Card>
+                      </Card>
+                    )}
                   </section>
 
                   <section className="space-y-4">
@@ -2723,7 +3340,7 @@ export function DesignaliCreative() {
                           <tbody>
                             {currentAppointments.map((visit: any, index: number) => (
                               <motion.tr
-                                key={visit.id}
+                                key={visit.$id}
                                 whileHover={{ backgroundColor: "rgba(0,0,0,0.02)" }}
                                 className="border-b last:border-b-0"
                               >
@@ -2806,12 +3423,33 @@ export function DesignaliCreative() {
                                       
                                       const handleMarkAsCompleted = async () => {
                                         try {
+                                          // Optymistycznie
+                                          setPendingIds(prev => new Set(prev).add(visit.$id))
+                                          setAppointments((prev: any) => prev ? { ...prev, documents: prev.documents.map((a: any) => a.$id === visit.$id ? { ...a, status: ["completed"], isCompleted: true } : a) } : prev)
+
                                           await markAppointmentAsCompleted(visit.$id);
-                                          fetchAppointments();
+                                          
+                                          // Toast sukcesu
+                                          toast({
+                                            variant: "default",
+                                            title: "✅ Wizyta oznaczona jako odbytej",
+                                            description: "Wizyta została pomyślnie oznaczona jako odbytej."
+                                          });
                                         } catch (error) {
-                                                    console.error('Błąd podczas oznaczania wizyty jako odbytej:', error);
+                                          console.error('Błąd podczas oznaczania wizyty jako odbytej:', error);
+                                          // Cofnij optymistyczną zmianę
+                                          setAppointments((prev: any) => prev ? { ...prev, documents: prev.documents.map((a: any) => a.$id === visit.$id ? { ...a, status: visit.status, isCompleted: visit.isCompleted } : a) } : prev)
+                                          toast({
+                                            variant: "destructive",
+                                            title: "Błąd oznaczania",
+                                            description: "Nie udało się oznaczyć wizyty jako odbytej. Spróbuj ponownie."
+                                          });
+                                        } finally {
+                                          setPendingIds(prev => { const n = new Set(prev); n.delete(visit.$id); return n })
                                         }
                                       };
+
+
                                       
                                       if (isCompleted) {
                                         return (
@@ -2833,33 +3471,50 @@ export function DesignaliCreative() {
                                       return (
                                         <>
                                           {hasAwaiting && (
-                                            <AppointmentModal
-                                              patientId={visit.patient?.$id || visit.userId}
-                                              userId={visit.userId}
-                                              appointment={visit}
-                                              type="schedule"
-                                              title="Potwierdź wizytę"
-                                              description="Proszę potwierdzić następujące szczegóły, aby potwierdzić wizytę."
-                                              isAdminModal={true}
-                                                        trigger={<Button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">Potwierdź wizytę</Button>}
-                                            />
+                                            <Button
+                                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                              onClick={() => handleConfirmAppointment(visit)}
+                                              disabled={pendingIds.has(visit.$id)}
+                                            >
+                                              {pendingIds.has(visit.$id) ? (
+                                                <div className="flex items-center gap-2">
+                                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                  Potwierdzanie...
+                                                </div>
+                                              ) : (
+                                                "Potwierdź wizytę"
+                                              )}
+                                            </Button>
                                           )}
                                           {hasAccepted && (
                                                       <>
-                                            <AppointmentModal
-                                              patientId={visit.patient?.$id || visit.userId}
-                                              userId={visit.userId}
-                                              appointment={visit}
-                                              type="plan"
-                                              title="Przełóż wizytę"
-                                              description="Proszę ustawić konkretną datę i godzinę wizyty."
-                                              isAdminModal={true}
-                                            />
+                                            <Button
+                                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm"
+                                              onClick={() => handleRescheduleAppointment(visit)}
+                                              disabled={pendingIds.has(visit.$id)}
+                                            >
+                                              {pendingIds.has(visit.$id) ? (
+                                                <div className="flex items-center gap-2">
+                                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                  Przełożenie...
+                                                </div>
+                                              ) : (
+                                                "Przełóż wizytę"
+                                              )}
+                                            </Button>
                                             <button
                                               onClick={handleMarkAsCompleted}
-                                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium text-sm"
+                                              disabled={pendingIds.has(visit.$id)}
+                                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                          Oznacz jako odbytą
+                                              {pendingIds.has(visit.$id) ? (
+                                                <div className="flex items-center gap-2">
+                                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                  Oznaczanie...
+                                                </div>
+                                              ) : (
+                                                "Oznacz jako odbytą"
+                                              )}
                                             </button>
                                                       </>
                                           )}
@@ -2872,6 +3527,10 @@ export function DesignaliCreative() {
                                               title="Anuluj wizytę"
                                               description="Czy na pewno chcesz anulować swoją wizytę?"
                                               isAdminModal={true}
+                                              onUpdated={({ id }) => {
+                                                // Optymistycznie usuń/anuluj w UI
+                                                setAppointments((prev: any) => prev ? { ...prev, documents: prev.documents.map((a: any) => a.$id === id ? { ...a, status: ["cancelled"] } : a) } : prev)
+                                              }}
                                             />
                                           )}
                                         </>
@@ -2885,13 +3544,13 @@ export function DesignaliCreative() {
                         </table>
                       </div>
 
-                      <div className="flex items-center justify-between p-4 border-t ">
+                      <div className="flex items-center justify-between p-4 border-t">
                         <div className="text-sm text-gray-600">
                           Strona {currentPage} z {totalPages} ({totalItems} wizyt)
                         </div>
                         <div className="flex items-center gap-2">
                           <Button 
-                            variant="ghost" 
+                            variant="outline" 
                             size="sm" 
                             className="rounded-xl"
                             onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
@@ -2900,7 +3559,7 @@ export function DesignaliCreative() {
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
                           <Button 
-                            variant="ghost" 
+                            variant="outline" 
                             size="sm" 
                             className="rounded-xl"
                             onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
@@ -3086,29 +3745,27 @@ export function DesignaliCreative() {
                     
                       <div className="flex items-center gap-2">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => {
                             const newWeek = new Date(currentWeek)
                             newWeek.setDate(currentWeek.getDate() - 7)
                             setCurrentWeek(newWeek)
                           }}
-                        className="p-2 hover:bg-gray-100 rounded-lg"
                         >
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
-                      <span className="text-sm font-medium text-gray-900 min-w-[140px] text-center">
+                      <div className="px-4 py-2 text-sm font-medium text-gray-900 min-w-[140px] text-center bg-white  rounded-md">
                           {formatWeekRange(currentWeek)}
-                        </span>
+                        </div>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => {
                             const newWeek = new Date(currentWeek)
                             newWeek.setDate(currentWeek.getDate() + 7)
                             setCurrentWeek(newWeek)
                           }}
-                        className="p-2 hover:bg-gray-100 rounded-lg"
                         >
                           <ChevronRight className="h-4 w-4" />
                         </Button>
@@ -3185,24 +3842,28 @@ export function DesignaliCreative() {
                                         slots.map((slot, slotIndex) => (
                                           <div
                                             key={slotIndex}
-                                            className={`text-xs px-2 py-1 rounded-2xl cursor-pointer flex items-center gap-1 ${
+                                            className={`text-xs px-2 py-1 ${slot.status === 'vacation' || slot.status === 'sick_leave' ? 'rounded' : 'rounded-2xl'} cursor-pointer flex items-center gap-1 ${
                                               slot.status === 'vacation' 
                                                 ? 'bg-orange-100 text-orange-700 border border-orange-200' 
                                                 : slot.status === 'sick_leave'
                                                 ? 'bg-red-100 text-red-600 border border-red-200'
-                                                : slot.type === 'nfz'
-                                                ? 'bg-blue-100 text-blue-600 border border-blue-200'
                                                 : 'text-gray-900'
                                             }`}
                                             onClick={() => openScheduleModal(doctor, dayOfWeek, day)}
                                           >
                                             {slot.status === 'vacation' ? (
-                                              <div className="flex items-center gap-1.5 p-1.5 cursor-pointer transition-colors text-orange-700">
+                                              <div className={`flex items-center gap-1.5 p-1.5 transition-colors text-orange-700 ${isPastVacationOrSickLeave(slot, day) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
                                                 <span className="text-xs font-medium">Urlop</span>
+                                                {isPastVacationOrSickLeave(slot, day || undefined) && (
+                                                  <span className="text-xs text-orange-500 ml-1"></span>
+                                                )}
                                               </div>
                                             ) : slot.status === 'sick_leave' ? (
-                                              <div className="flex items-center gap-1.5 p-1.5 cursor-pointer transition-colors hover:bg-red-200 bg-red-100 text-red-600">
+                                              <div className={`flex items-center gap-1.5 p-1.5 transition-colors hover:bg-red-200 bg-red-100 text-red-600 ${isPastVacationOrSickLeave(slot, day) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
                                                 <span className="text-xs font-medium">Zwolnienie</span>
+                                                {isPastVacationOrSickLeave(slot, day || undefined) && (
+                                                  <span className="text-xs text-red-500 ml-1"></span>
+                                                )}
                                               </div>
                                             ) : (
                                               <div className="flex flex-col gap-1">
@@ -3229,15 +3890,7 @@ export function DesignaliCreative() {
                                                   )}
                         </div>
                                                 <div className="text-xs text-left">
-                                                  {slot.type === 'nfz' ? (
-                                                    <img 
-                                                      src="/assets/images/nfz.jpg" 
-                                                      alt="NFZ" 
-                                                      className="w-6 h-6 rounded-[5px]"
-                                                    />
-                                                  ) : (
-                                                    <span className="text-gray-500">Komercyjne</span>
-                                                  )}
+                                                  <span className={slot.type === 'nfz' ? 'text-blue-600 font-medium' : 'text-gray-500'}>{slot.type === 'nfz' ? 'NFZ' : 'Komercyjne'}</span>
                         </div>
                         </div>
                                             )}
@@ -3245,10 +3898,10 @@ export function DesignaliCreative() {
                                         ))
                                       ) : (
                                         <div
-                                          className="text-xs text-gray-400 cursor-pointer hover:text-gray-600"
+                                          className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 flex items-center justify-center"
                                           onClick={() => openScheduleModal(doctor, dayOfWeek, day)}
                                         >
-                                          -
+                                          +
                         </div>
                                       )}
                         </div>
@@ -3291,7 +3944,7 @@ export function DesignaliCreative() {
                          Exportuj dane
                        </Button>
                        <Button
-                         variant="ghost"
+                         variant="outline"
                          size="sm"
                          onClick={() => {
                            const newMonth = new Date(monthCursor)
@@ -3301,11 +3954,11 @@ export function DesignaliCreative() {
                        >
                          <ChevronLeft className="h-4 w-4" />
                        </Button>
-                       <span className="text-sm font-medium text-gray-900 min-w-[160px] text-center">
+                       <div className="px-4 py-2 text-sm font-medium text-gray-900 min-w-[160px] text-center bg-white  rounded-md">
                          {monthCursor.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
-                       </span>
+                       </div>
                        <Button
-                         variant="ghost"
+                         variant="outline"
                          size="sm"
                          onClick={() => {
                            const newMonth = new Date(monthCursor)
@@ -3398,9 +4051,11 @@ export function DesignaliCreative() {
                                     <div className="text-sm font-medium text-green-600">
                                       {stats.remainingVacationDays} dni
                                     </div>
+                                    {typeof stats.totalVacationDays === 'number' && (
                                     <div className="text-xs text-gray-500">
-                                      z 21 dostępnych
+                                        z {stats.totalVacationDays} dostępnych
                                     </div>
+                                    )}
                                   </td>
                                 </tr>
                               )
@@ -3417,7 +4072,7 @@ export function DesignaliCreative() {
                       <h2 className="text-2xl font-bold text-gray-900">Grafik miesięczny</h2>
                       <div className="flex items-center gap-2">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => {
                             const newMonth = new Date(monthCursor)
@@ -3427,11 +4082,11 @@ export function DesignaliCreative() {
                         >
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <span className="text-sm font-medium text-gray-900 min-w-[160px] text-center">
+                        <div className="px-4 py-2 text-sm font-medium text-gray-900 min-w-[160px] text-center bg-white  rounded-md">
                           {monthCursor.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
-                        </span>
+                        </div>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => {
                             const newMonth = new Date(monthCursor)
@@ -3469,7 +4124,7 @@ export function DesignaliCreative() {
                             
                             if (!isCurrentMonth) {
                               return (
-                                <div key={index} className="h-full bg-white"></div>
+                                <div key={index} className="h-full bg-gray-100"></div>
                               )
                             }
 
@@ -3525,8 +4180,20 @@ export function DesignaliCreative() {
                                         return (
                                           <div 
                                             key={slotIndex} 
-                                            className="flex items-center gap-1.5 p-1.5 rounded cursor-pointer transition-colors hover:bg-red-200 bg-red-100 text-red-600 border border-red-200"
-                                            onClick={() => day && openScheduleModalForDate(doctor, day)}
+                                            className={`flex items-center gap-1.5 p-1.5 rounded transition-colors hover:bg-red-200 bg-red-100 text-red-600 border border-red-200 ${isPastVacationOrSickLeave(slot, day || undefined) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+                                            onClick={() => {
+                                              if (day) {
+                                                if (isPastVacationOrSickLeave(slot, day || undefined)) {
+                                                  toast({
+                                                    variant: "destructive",
+                                                    title: "Tylko podgląd",
+                                                    description: "Nie można edytować urlopów i zwolnień z przeszłości"
+                                                  })
+                                                } else {
+                                                  openScheduleModalForDate(doctor, day)
+                                                }
+                                              }
+                                            }}
                                           >
                                             {doctor.avatar ? (
                                               <img
@@ -3542,6 +4209,9 @@ export function DesignaliCreative() {
                                               </div>
                                             )}
                                             <span className="text-xs font-medium">Zwolnienie</span>
+                                            {isPastVacationOrSickLeave(slot, day || undefined) && (
+                                              <span className="text-xs text-red-500 ml-1"></span>
+                                            )}
                                           </div>
                                         )
                                       }
@@ -3550,8 +4220,20 @@ export function DesignaliCreative() {
                                         return (
                                           <div 
                                             key={slotIndex} 
-                                            className="flex items-center gap-1.5 p-1.5 rounded cursor-pointer transition-colors hover:bg-orange-200 bg-orange-100 text-orange-700 border border-orange-200"
-                                            onClick={() => day && openScheduleModalForDate(doctor, day)}
+                                            className={`flex items-center gap-1.5 p-1.5 rounded transition-colors hover:bg-orange-200 bg-orange-100 text-orange-700 border border-orange-200 ${isPastVacationOrSickLeave(slot, day || undefined) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+                                            onClick={() => {
+                                              if (day) {
+                                                if (isPastVacationOrSickLeave(slot, day || undefined)) {
+                                                  toast({
+                                                    variant: "destructive",
+                                                    title: "Tylko podgląd",
+                                                    description: "Nie można edytować urlopów i zwolnień z przeszłości"
+                                                  })
+                                                } else {
+                                                  openScheduleModalForDate(doctor, day)
+                                                }
+                                              }
+                                            }}
                                           >
                                             {doctor.avatar ? (
                                               <img
@@ -3567,6 +4249,9 @@ export function DesignaliCreative() {
                                               </div>
                                             )}
                                             <span className="text-xs font-medium">Urlop</span>
+                                            {isPastVacationOrSickLeave(slot, day || undefined) && (
+                                              <span className="text-xs text-orange-500 ml-1"></span>
+                                            )}
                                           </div>
                                         )
                                       }
@@ -3953,6 +4638,7 @@ export function DesignaliCreative() {
                   variant="outline" 
                   className="rounded-2xl flex-1 bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
                   onClick={() => {
+                    playButtonSound()
                     if (confirm(`Czy na pewno chcesz usunąć pacjenta ${selectedPatient.name}?\n\nTa operacja jest nieodwracalna!`)) {
                       handleDeletePatient()
                     }
@@ -4139,6 +4825,11 @@ export function DesignaliCreative() {
                                   className="w-20 px-2 py-1 border border-gray-300 rounded text-center text-sm"
                                 />
                                 <span className="text-sm text-gray-600">PLN</span>
+                                {selectedDoctor && getDoctorHistoricalRates(selectedDoctor.$id).hasHistory && slot.id.startsWith('new-') && (
+                                  <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                    Sugerowane
+                                  </span>
+                                )}
                               </div>
                             )}
                             
@@ -4177,20 +4868,30 @@ export function DesignaliCreative() {
                 <Button
                   variant="outline"
                   className="flex-1 bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
-                  onClick={deleteSchedule}
+                  onClick={() => {
+                    playButtonSound()
+                    deleteSchedule()
+                  }}
+                  disabled={selectedDate ? new Date(selectedDate).setHours(0,0,0,0) < new Date().setHours(0,0,0,0) : false}
                 >
                   Usuń
                 </Button>
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setShowScheduleModal(false)}
+                  onClick={() => {
+                    playButtonSound()
+                    setShowScheduleModal(false)
+                  }}
                 >
                   Anuluj
                 </Button>
                 <Button
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={saveSchedule}
+                  onClick={() => {
+                    playButtonSound()
+                    saveSchedule()
+                  }}
                   disabled={isSavingSchedule}
                 >
                   {isSavingSchedule ? "Zapisywanie..." : "Zapisz"}
@@ -4315,12 +5016,18 @@ export function DesignaliCreative() {
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setShowAddEmployeeModal(false)}
+                  onClick={() => {
+                    playButtonSound()
+                    setShowAddEmployeeModal(false)
+                  }}
                 >
                   Anuluj
                 </Button>
                 <Button
-                  onClick={handleAddSpecialist}
+                  onClick={() => {
+                    playButtonSound()
+                    handleAddSpecialist()
+                  }}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   Dodaj specjalistę
@@ -4355,12 +5062,86 @@ export function DesignaliCreative() {
         </div>
       )}
 
+      {/* Element audio do odtwarzania dźwięku */}
+      <audio 
+        ref={audioRef} 
+        preload="auto"
+        controls={false}
+        style={{ display: 'none' }}
+        onLoadStart={() => console.log("🔊 Rozpoczęto ładowanie audio")}
+        onLoadedData={() => console.log("🔊 Audio załadowane pomyślnie")}
+        onCanPlay={() => console.log("🔊 Audio gotowe do odtworzenia")}
+        onError={(e) => console.error("❌ Błąd ładowania audio:", e)}
+        onPlay={() => console.log("🔊 Audio rozpoczęło odtwarzanie")}
+        onEnded={() => console.log("🔊 Audio zakończyło odtwarzanie")}
+      >
+        <source src="/assets/sounds/nowa-wizyta.mp3" type="audio/mpeg" />
+        <source src="/assets/sounds/nowa-wizyta.mp3" type="audio/mp3" />
+        Twoja przeglądarka nie obsługuje elementu audio.
+      </audio>
+
+
+      {/* Element audio do dźwięku przycisków */}
+      <audio 
+        ref={buttonAudioRef} 
+        preload="auto"
+        controls={false}
+        style={{ display: 'none' }}
+        onError={(e) => console.error("Błąd ładowania dźwięku przycisku:", e)}
+      >
+        <source src="/assets/sounds/button.mp3" type="audio/mpeg" />
+        <source src="/assets/sounds/button.mp3" type="audio/mp3" />
+        Twoja przeglądarka nie obsługuje elementu audio.
+      </audio>
+
+
+      {/* Powiadomienie o nowej wizycie */}
+      {isNewAppointment && (
+        <motion.div
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -50 }}
+          className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2"
+        >
+          <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+          <span className="font-semibold">Nowa wizyta! Potwierdź ją w panelu</span>
+        </motion.div>
+      )}
+
       {/* System bezpieczeństwa */}
       <SecurityPopup
         isOpen={showSecurityPopup}
         onClose={handleSecurityClose}
         onSuccess={handleSecuritySuccess}
       />
+
+      {/* Modal potwierdzenia wizyty */}
+      {selectedAppointment && (
+        <AppointmentConfirmationModal
+          open={showConfirmationModal}
+          onOpenChange={setShowConfirmationModal}
+          appointment={selectedAppointment}
+          doctors={doctors}
+          doctorWorkingHours={{}}
+          schedules={schedules}
+          scheduleSlots={scheduleSlots}
+          onConfirm={handleConfirmAppointmentSubmit}
+        />
+      )}
+
+      {/* Modal przełożenia wizyty */}
+      {selectedAppointment && (
+        <AppointmentRescheduleModal
+          open={showRescheduleModal}
+          onOpenChange={setShowRescheduleModal}
+          appointment={selectedAppointment}
+          doctors={doctors}
+          doctorWorkingHours={{}}
+          schedules={schedules}
+          scheduleSlots={scheduleSlots}
+          onReschedule={handleRescheduleSubmit}
+        />
+      )}
     </div>
   );
 };

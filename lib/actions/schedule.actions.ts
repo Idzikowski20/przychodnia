@@ -11,7 +11,8 @@ import {
 import { parseStringify } from "../utils";
 
 // Konfiguracja domyślnej puli urlopów w roku
-const DEFAULT_VACATION_DAYS = 26;
+// Domyślna pula urlopów w roku (używana tylko, gdy nie istnieją żadne zapisy w bazie)
+const DEFAULT_VACATION_DAYS = 21;
 
 // CREATE SCHEDULE
 export const createSchedule = async (schedule: {
@@ -458,20 +459,18 @@ export const calculateAndUpdateStats = async (doctorId: string, date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth() + 1;
     
-    // Daty zakresów
-    const monthStart = new Date(year, month - 1, 1);
-    const monthEnd = new Date(year, month, 0);
-    const monthStartISO = monthStart.toISOString();
-    const monthEndISO = monthEnd.toISOString();
-    const yearStartISO = new Date(year, 0, 1).toISOString();
-    const yearEndISO = new Date(year, 11, 31).toISOString();
+    // Zakresy w czasie lokalnym (żeby uniknąć przesunięć do poprzedniego dnia)
+    const monthStart = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
+    const yearStart = new Date(year, 0, 1, 0, 0, 0, 0);
+    const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
 
     // Szybsza ścieżka: jeśli w slotach istnieje atrybut doctorId – pobierz wszystko tego lekarza
     // i odfiltruj w pamięci (najmniej wrażliwe na różnice schematu)
     const allDoctorSlots = await databases.listDocuments(
       DATABASE_ID!,
       SCHEDULE_SLOT_COLLECTION_ID!,
-      [Query.equal('doctorId', doctorId)]
+      [Query.equal('doctorId', doctorId), Query.limit(1000)]
     );
 
     // Dla bezpieczeństwa: jeżeli kolekcja nie ma pola doctorId lub zwróci 0, fallback do scheduleId
@@ -482,14 +481,14 @@ export const calculateAndUpdateStats = async (doctorId: string, date: Date) => {
       const doctorSchedules = await databases.listDocuments(
         DATABASE_ID!,
         SCHEDULE_COLLECTION_ID!,
-        [Query.equal('doctorId', doctorId)]
+        [Query.equal('doctorId', doctorId), Query.limit(1000)]
       );
       const scheduleIds = doctorSchedules.documents.map((s: any) => s.$id);
       if (scheduleIds.length > 0) {
         const bySchedule = await databases.listDocuments(
           DATABASE_ID!,
           SCHEDULE_SLOT_COLLECTION_ID!,
-          [Query.equal('scheduleId', scheduleIds)]
+          [Query.equal('scheduleId', scheduleIds), Query.limit(1000)]
         );
         allSlots = bySchedule.documents as any[];
       } else {
@@ -501,8 +500,29 @@ export const calculateAndUpdateStats = async (doctorId: string, date: Date) => {
     // - z datą (specificDate) -> używane do liczenia godzin (jeśli working), urlopów i zwolnień
     // - tygodniowe (dayOfWeek), bez specificDate -> używane do liczenia godzin (working) przez rozwinięcie w miesiącu
     const slotsWithDate = allSlots.filter((s: any) => !!s.specificDate);
-    const monthlyDated = slotsWithDate.filter((s: any) => s.specificDate >= monthStartISO && s.specificDate <= monthEndISO);
-    const yearlyDated = slotsWithDate.filter((s: any) => s.specificDate >= yearStartISO && s.specificDate <= yearEndISO);
+
+    const toDate = (value: any): Date | null => {
+      if (!value) return null;
+      if (typeof value === 'string') {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          // format YYYY-MM-DD
+          return new Date(`${value}T00:00:00`);
+        }
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      const d = new Date(value);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    const monthlyDated = slotsWithDate.filter((s: any) => {
+      const d = toDate(s.specificDate);
+      return !!d && d >= monthStart && d <= monthEnd;
+    });
+    const yearlyDated = slotsWithDate.filter((s: any) => {
+      const d = toDate(s.specificDate);
+      return !!d && d >= yearStart && d <= yearEnd;
+    });
     const weeklySlots = allSlots.filter((s: any) => !s.specificDate && s.dayOfWeek != null);
 
     // Oblicz statystyki miesięczne
@@ -552,7 +572,7 @@ export const calculateAndUpdateStats = async (doctorId: string, date: Date) => {
       }
     });
 
-    const remainingVacationDays = DEFAULT_VACATION_DAYS - vacationDays;
+    const remainingVacationDays = Math.max(0, DEFAULT_VACATION_DAYS - vacationDays);
 
     // Aktualizuj statystyki miesięczne
     await updateMonthlyStats(doctorId, year, month, {
@@ -564,7 +584,7 @@ export const calculateAndUpdateStats = async (doctorId: string, date: Date) => {
     });
 
     // Aktualizuj śledzenie urlopów rocznych
-    await updateYearlyVacationTracking(doctorId, year, {
+    const yearlyUpdated = await updateYearlyVacationTracking(doctorId, year, {
       usedVacationDays: vacationDays,
       usedSickLeaveDays: sickLeaveDays,
       remainingVacationDays: Math.max(0, remainingVacationDays)

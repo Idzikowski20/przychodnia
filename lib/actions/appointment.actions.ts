@@ -64,27 +64,32 @@ export const createAppointment = async (
 //  GET RECENT APPOINTMENTS
 export const getRecentAppointmentList = async () => {
   try {
-    // Pobierz wizyty, gabinety i lekarzy równocześnie
-    const [appointments, rooms, doctors] = await Promise.all([
+    // Pobierz wizyty, gabinety i lekarzy równocześnie z lepszą obsługą błędów
+    const [appointments, rooms, doctors] = await Promise.allSettled([
       databases.listDocuments(
         DATABASE_ID!,
         APPOINTMENT_COLLECTION_ID!,
-        [Query.orderDesc("$createdAt")]
+        [Query.orderDesc("$createdAt"), Query.limit(1000)]
       ),
       getRooms(),
       getDoctors()
     ]);
 
+    // Obsłuż wyniki
+    const appointmentsResult = appointments.status === 'fulfilled' ? appointments.value : { documents: [] };
+    const roomsResult = rooms.status === 'fulfilled' ? rooms.value : [];
+    const doctorsResult = doctors.status === 'fulfilled' ? doctors.value : [];
+
     // const scheduledAppointments = (
-    //   appointments.documents as Appointment[]
+    //   appointmentsResult.documents as Appointment[]
     // ).filter((appointment) => appointment.status === "scheduled");
 
     // const pendingAppointments = (
-    //   appointments.documents as Appointment[]
+    //   appointmentsResult.documents as Appointment[]
     // ).filter((appointment) => appointment.status === "pending");
 
     // const cancelledAppointments = (
-    //   appointments.documents as Appointment[]
+    //   appointmentsResult.documents as Appointment[]
     // ).filter((appointment) => appointment.status === "cancelled");
 
     // const data = {
@@ -92,7 +97,7 @@ export const getRecentAppointmentList = async () => {
     //   scheduledCount: scheduledAppointments.length,
     //   pendingCount: pendingAppointments.length,
     //   cancelledCount: cancelledAppointments.length,
-    //   documents: appointments.documents,
+    //   documents: appointmentsResult.documents,
     // };
 
     const initialCounts = {
@@ -103,7 +108,7 @@ export const getRecentAppointmentList = async () => {
       completedCount: 0,
     };
 
-    const counts = (appointments.documents as Appointment[]).reduce(
+    const counts = (appointmentsResult.documents as Appointment[]).reduce(
       (acc, appointment) => {
         // Backward compatibility: obsługa zarówno array jak i string
         let statuses: string[];
@@ -147,23 +152,23 @@ export const getRecentAppointmentList = async () => {
     );
 
     // Pobierz dane pacjentów dla wszystkich wizyt
-    const patientPromises = appointments.documents.map((appointment: any) => 
+    const patientPromises = appointmentsResult.documents.map((appointment: any) => 
       getPatient(appointment.userId)
     );
     const patients = await Promise.all(patientPromises);
     
-    console.log("🔍 Pobrane dane pacjentów:", patients.length, "pacjentów");
-    console.log("🔍 Przykład danych pacjenta:", patients[0]);
+
+
 
     // Zaktualizuj wizyty z aktualnymi informacjami o gabinetach, lekarzach i pacjentach
-    const updatedAppointments = appointments.documents.map((appointment: any, index: number) => {
+    const updatedAppointments = appointmentsResult.documents.map((appointment: any, index: number) => {
       // Znajdź gabinet przypisany do specjalisty
-      const specialistRoom = rooms.find((room: any) => 
+      const specialistRoom = roomsResult.find((room: any) => 
         room.assignedSpecialist === appointment.primaryPhysician
       );
       
       // Znajdź lekarza
-      const doctor = doctors.find((doctor: any) => 
+      const doctor = doctorsResult.find((doctor: any) => 
         doctor.name === appointment.primaryPhysician
       );
       
@@ -182,7 +187,7 @@ export const getRecentAppointmentList = async () => {
     });
 
     const data = {
-      totalCount: appointments.total,
+      totalCount: appointmentsResult.total || appointmentsResult.documents.length,
       ...counts,
       documents: updatedAppointments,
     };
@@ -234,42 +239,69 @@ export const updateAppointment = async ({
 
     // Przygotuj dane do aktualizacji
     let updateData: any = {};
-    
-    if (appointment) {
-      // Kopiuj tylko potrzebne pola z appointment, pomijając relacje i undefined
-      updateData = {};
-      
+
+    // Dla operacji statusu trzymajmy minimalny payload (tylko status)
+    if (type === "cancel" || type === "schedule" || type === "complete") {
+      updateData = {
+        status:
+          type === "cancel"
+            ? ["cancelled"]
+            : type === "schedule"
+            ? ["accepted"]
+            : ["completed"],
+      };
+      console.log("🔍 Update (status-only) payload:", updateData);
+    } else if (appointment) {
+      // Kopiuj tylko bezpieczne pola (bez relacji)
       if (appointment.primaryPhysician !== undefined) updateData.primaryPhysician = appointment.primaryPhysician;
       if (appointment.schedule !== undefined) updateData.schedule = appointment.schedule;
       if (appointment.reason !== undefined) updateData.reason = appointment.reason;
       if (appointment.note !== undefined) updateData.note = appointment.note;
       if (appointment.cancellationReason !== undefined) updateData.cancellationReason = appointment.cancellationReason;
       if (appointment.isCompleted !== undefined) updateData.isCompleted = appointment.isCompleted;
-      
-      // Upewnij się, że status jest tablicą
-      if (appointment.status) {
-        if (Array.isArray(appointment.status)) {
-          updateData.status = appointment.status;
-        } else {
-          updateData.status = [appointment.status];
-        }
+      if (appointment.rescheduleNote !== undefined) updateData.rescheduleNote = appointment.rescheduleNote;
+
+      if (appointment.status !== undefined) {
+        updateData.status = Array.isArray(appointment.status)
+          ? appointment.status
+          : [appointment.status];
       }
-      
-      console.log("🔍 Update data before sending:", updateData);
+      console.log("🔍 Update (details) payload:", updateData);
     } else {
+      // Notatki bez zmiany statusu
       if (note !== undefined) updateData.note = note;
       if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
-      
-      // Obsługa typu operacji
-      if (type === "cancel") {
-        updateData.status = ["cancelled"];
-      } else if (type === "schedule") {
-        updateData.status = ["accepted"];
-      } else if (type === "complete") {
-        updateData.status = ["completed"];
+      console.log("🔍 Update (notes) payload:", updateData);
+    }
+
+    // Upewnij się, że relacje w istniejącym dokumencie są zgodne ze schematem (np. 'patient' nie jest tablicą)
+    try {
+      const existing: any = await databases.getDocument(
+        DATABASE_ID!,
+        APPOINTMENT_COLLECTION_ID!,
+        appointmentId
+      );
+      // Normalizacja relacji 'patient' (jeżeli w dokumencie jest tablica, wybierz pierwszy element / $id)
+      if (existing && (Array.isArray(existing.patient) || typeof existing.patient !== 'string')) {
+        let normalizedPatient: string | undefined;
+        if (Array.isArray(existing.patient)) {
+          const first = existing.patient[0];
+          if (typeof first === 'string') normalizedPatient = first;
+          else if (first && typeof first === 'object' && first.$id) normalizedPatient = first.$id;
+        } else if (existing.patient && typeof existing.patient === 'object' && existing.patient.$id) {
+          normalizedPatient = existing.patient.$id;
+        }
+        // Fallback do userId, jeżeli wygląda jak ID pacjenta
+        if (!normalizedPatient && typeof existing.userId === 'string') {
+          normalizedPatient = existing.userId;
+        }
+        if (normalizedPatient) {
+          (updateData as any).patient = normalizedPatient;
+        }
       }
-      
-      console.log("🔍 Update data before sending:", updateData);
+
+    } catch (e) {
+      console.warn('⚠️ Could not load existing appointment for normalization');
     }
 
     // Update appointment -> https://appwrite.io/docs/references/cloud/server-nodejs/databases#updateDocument
@@ -284,8 +316,23 @@ export const updateAppointment = async ({
 
     // Wyślij SMS tylko gdy aktualizujemy status wizyty, nie gdy dodajemy notatki
     if (type && userId && timeZone && appointment && !skipSMS) {
-      const smsMessage = `${type === "schedule" ? `Twoja wizyta została potwierdzona na ${formatDateTime(appointment.schedule!, timeZone).dateTime} z dr. ${appointment.primaryPhysician}` : `Z przykrością informujemy, że Twoja wizyta na ${formatDateTime(appointment.schedule!, timeZone).dateTime} została anulowana. Powód:  ${appointment.cancellationReason}`}.`;
-      await sendSMSNotification(userId, smsMessage);
+      let smsMessage = "";
+      
+      if (type === "schedule") {
+        smsMessage = `Twoja wizyta została potwierdzona na ${formatDateTime(appointment.schedule!, timeZone).dateTime} z dr. ${appointment.primaryPhysician}.`;
+      } else if (type === "plan") {
+        // SMS dla przełożenia wizyty
+        const newDate = formatDateTime(appointment.schedule!, timeZone);
+        const doctorChange = appointment.primaryPhysician !== appointment.originalPhysician ? 
+          ` i została przeniesiona do dr. ${appointment.primaryPhysician}` : "";
+        smsMessage = `Twoja wizyta została przełożona na ${newDate.dateTime}${doctorChange}.`;
+      } else if (type === "cancel") {
+        smsMessage = `Z przykrością informujemy, że Twoja wizyta na ${formatDateTime(appointment.schedule!, timeZone).dateTime} została anulowana. Powód: ${appointment.cancellationReason}.`;
+      }
+      
+      if (smsMessage) {
+        await sendSMSNotification(userId, smsMessage);
+      }
     }
 
     revalidatePath("/admin");
@@ -327,7 +374,7 @@ export const getAppointment = async (appointmentId: string) => {
 
 export const getAppointmentsByPatient = async (userId: string) => {
   try {
-    console.log("🔍 Szukam wizyt dla userId:", userId);
+
     
     // Pobierz wizyty, gabinety i lekarzy równocześnie
     const [appointments, rooms, doctors] = await Promise.all([
@@ -340,7 +387,7 @@ export const getAppointmentsByPatient = async (userId: string) => {
       getDoctors()
     ]);
 
-    console.log("📋 Znalezione wizyty dla userId:", appointments.documents.length);
+
 
     // Pobierz dane pacjenta dla tego użytkownika
     const patient = await getPatient(userId);
@@ -400,7 +447,7 @@ export const getAppointmentsByDoctorAndDate = async (doctorName: string, date: D
       [Query.equal("primaryPhysician", [doctorName])]
     );
 
-    console.log("📋 Znalezione wizyty dla lekarza:", appointments.documents.length);
+
 
     // Filtruj wizyty dla konkretnego dnia (LOKALNIE) i wyklucz anulowane/zakończone
     const dayAppointments = appointments.documents.filter((appointment: any) => {
@@ -427,7 +474,7 @@ export const getAppointmentsByDoctorAndDate = async (doctorName: string, date: D
       return true;
     });
 
-    console.log("📅 Wizyty w dniu", dateString, ":", dayAppointments.length);
+
 
     // Pobierz dane pacjentów dla wszystkich wizyt w tym dniu
     const patientPromises = dayAppointments.map((appointment: any) => 
@@ -490,7 +537,7 @@ export const markAppointmentAsCompleted = async (appointmentId: string) => {
 // UPDATE EXISTING APPOINTMENTS WITH ROOM INFO
 export const updateAppointmentsWithRoomInfo = async () => {
   try {
-    console.log("🔄 Aktualizuję istniejące wizyty z informacjami o gabinecie...");
+
     
     // Pobierz wszystkie wizyty
     const appointments = await databases.listDocuments(
@@ -549,12 +596,12 @@ export const updateAppointmentsWithRoomInfo = async () => {
           );
           
           updatedCount++;
-          console.log(`✅ Zaktualizowano wizytę ${appointmentData.$id}`, updateData);
+
         }
       }
     }
     
-    console.log(`🎉 Zaktualizowano ${updatedCount} wizyt z informacjami o gabinecie`);
+
     revalidatePath("/admin");
     
     return { success: true, updatedCount };
@@ -636,13 +683,13 @@ export const getUpcomingAppointments = async (limit: number = 5) => {
       ]
     );
 
-    // Filtruj tylko wizyty ze statusem scheduled, accepted lub pending
+    // Filtruj tylko wizyty ze statusem accepted lub pending (nie scheduled - przełożone)
     const upcomingAppointments = appointments.documents.filter((appointment: any) => {
       const status = appointment.status;
       if (Array.isArray(status)) {
-        return status.includes('scheduled') || status.includes('accepted') || status.includes('pending');
+        return status.includes('accepted') || status.includes('pending') || status.includes('awaiting');
       }
-      return status === 'scheduled' || status === 'accepted' || status === 'pending';
+      return status === 'accepted' || status === 'pending' || status === 'awaiting';
     });
 
     return parseStringify(upcomingAppointments);

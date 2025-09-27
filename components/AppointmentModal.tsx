@@ -27,6 +27,7 @@ export const AppointmentModal = ({
   description,
   isAdminModal = false,
   trigger,
+  onUpdated,
 }: {
   patientId: string;
   userId: string;
@@ -36,6 +37,7 @@ export const AppointmentModal = ({
   description: string;
   isAdminModal?: boolean;
   trigger?: React.ReactNode;
+  onUpdated?: (payload: { id: string; status?: string[]; isCompleted?: boolean }) => void;
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -70,6 +72,7 @@ export const AppointmentModal = ({
           appointment={appointment}
           setOpen={setOpen}
           isAdminModal={isAdminModal}
+          onUpdated={onUpdated}
         />
       </DialogContent>
     </Dialog>

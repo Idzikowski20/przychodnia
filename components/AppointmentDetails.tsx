@@ -270,7 +270,7 @@ export const AppointmentDetails = ({
                     <AppointmentNotesModal appointment={appointment} />
                     <button
                       onClick={() => handleAction("create")}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-gray-900 rounded-lg transition-colors font-medium"
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
                     >
                       Umów ponownie
                     </button>
@@ -291,7 +291,7 @@ export const AppointmentDetails = ({
                     {hasAwaiting && (
                       <button
                         onClick={() => handleAction("schedule")}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-gray-900 rounded-lg transition-colors font-medium"
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
                       >
                         Potwierdź wizytę
                       </button>
@@ -300,7 +300,7 @@ export const AppointmentDetails = ({
                     {hasAccepted && (
                       <button
                         onClick={() => handleAction("plan")}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-gray-900 rounded-lg transition-colors font-medium"
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
                       >
                         Przełóż wizytę
                       </button>
@@ -309,7 +309,7 @@ export const AppointmentDetails = ({
                     {!hasCancelled && (
                       <button
                         onClick={() => handleAction("cancel")}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-gray-900 rounded-lg transition-colors font-medium"
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
                       >
                         Anuluj wizytę
                       </button>

@@ -22,7 +22,7 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
     toast: (t) => {
       const id = Math.random().toString(36).slice(2)
       setToasts((prev) => [...prev, { id, ...t }])
-      setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== id)), 3000)
+      setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== id)), 5000)
     },
   }), [])
 

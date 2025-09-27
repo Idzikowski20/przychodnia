@@ -99,6 +99,13 @@ export const AppointmentDetailsContent = ({
                 <p className="text-red-600 bg-red-50 p-3 rounded-md">{appointment.cancellationReason}</p>
               </div>
             )}
+
+            {appointment.rescheduleNote && (
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium text-gray-600">Notatka przełożenia</label>
+                <p className="text-blue-600 bg-blue-50 p-3 rounded-md">{appointment.rescheduleNote}</p>
+              </div>
+            )}
           </div>
         </section>
 

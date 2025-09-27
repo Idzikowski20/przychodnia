@@ -35,13 +35,21 @@ export const getRooms = async () => {
     const rooms = await databases.listDocuments(
       DATABASE_ID!,
       ROOM_COLLECTION_ID!,
-      [Query.orderDesc("$createdAt")]
+      [
+        Query.orderDesc("$createdAt"),
+        Query.limit(100) // Ogranicz do 100 gabinetów
+      ]
     );
 
     return parseStringify(rooms.documents);
   } catch (error) {
     console.error("An error occurred while fetching rooms:", error);
-    return [];
+    // Zwróć domyślne gabinety w przypadku błędu
+    return [
+      { $id: "default-1", name: "Gabinet 1", color: "#3B82F6", assignedSpecialist: null },
+      { $id: "default-2", name: "Gabinet 2", color: "#10B981", assignedSpecialist: null },
+      { $id: "default-3", name: "Gabinet 3", color: "#F59E0B", assignedSpecialist: null }
+    ];
   }
 };
 

@@ -5,6 +5,14 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { X, Calendar, User, Phone, Mail, MapPin, Briefcase, Heart } from "lucide-react"
 
+// Funkcja do odtwarzania dźwięku przycisku
+const playButtonSound = () => {
+  const audio = new Audio("/assets/sounds/button.mp3");
+  audio.play().catch((error) => {
+    console.error("Błąd odtwarzania dźwięku przycisku:", error);
+  });
+};
+
 interface VisitDetailsModalProps {
   isOpen: boolean
   onClose: () => void
@@ -18,6 +26,7 @@ interface VisitDetailsModalProps {
     time: string
     doctor: string
     doctorAvatar: string
+    rescheduleNote?: string
   }
 }
 
@@ -76,6 +85,13 @@ export function VisitDetailsModal({ isOpen, onClose, visit }: VisitDetailsModalP
                 <label className="text-sm font-medium text-gray-600">Powód wizyty</label>
                 <div className="mt-1 text-gray-900">Konsultacja psychologiczna</div>
               </div>
+
+              {visit.rescheduleNote && (
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-gray-600">Notatka przełożenia</label>
+                  <div className="mt-1 text-blue-600 bg-blue-50 p-3 rounded-md">{visit.rescheduleNote}</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -195,7 +211,10 @@ export function VisitDetailsModal({ isOpen, onClose, visit }: VisitDetailsModalP
             <Button variant="outline" className="rounded-xl bg-transparent">
               Notatka
             </Button>
-            <Button className="bg-green-600 hover:bg-green-700 text-white rounded-xl">Umów ponownie</Button>
+            <Button onClick={() => {
+              playButtonSound();
+              // Tutaj można dodać logikę umawiania ponownie
+            }} className="bg-green-600 hover:bg-green-700 text-white rounded-xl">Umów ponownie</Button>
           </div>
         </div>
       </DialogContent>

@@ -9,9 +9,9 @@ import { cn } from "@/lib/utils";
 const fontSans = { variable: "--font-sans" } as const;
 
 export const metadata: Metadata = {
-  title: "CarePulse",
+  title: "CarePulse - Psycholog Wołomin i Warszawa",
   description:
-    "A healthcare patient management System designed to streamline patient registration, appointment scheduling, and medical records management for healthcare providers.",
+    "Specjalistyczna Poradnia Psychologiczna CarePulse w Wołominie i Warszawie. Profesjonalna pomoc psychologiczna, terapia, diagnozy i wsparcie. Umów się na wizytę już dziś.",
   icons: {
     icon: "/assets/icons/logo-icon.svg",
   },

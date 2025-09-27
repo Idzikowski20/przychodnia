@@ -5,6 +5,14 @@ import { ChevronLeft, ChevronRight, Clock, User, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+
+// Funkcja do odtwarzania dźwięku przycisku
+const playButtonSound = () => {
+  const audio = new Audio("/assets/sounds/button.mp3");
+  audio.play().catch((error) => {
+    console.error("Błąd odtwarzania dźwięku przycisku:", error);
+  });
+};
 import { getActiveDoctors } from "@/lib/actions/doctor.actions";
 import { getSchedules, getScheduleSlots } from "@/lib/actions/schedule.actions";
 import { createAppointment, getRecentAppointmentList } from "@/lib/actions/appointment.actions";
@@ -126,7 +134,7 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
       
       // Check each doctor's schedule once
       for (const doctor of doctors) {
-        const doctorSchedule = schedules.find(s => s.doctorId === doctor.$id);
+        const doctorSchedule = schedules.find((s: any) => s.doctorId === doctor.$id);
         if (!doctorSchedule) continue;
         
         const slots = await getScheduleSlots(doctorSchedule.$id);
@@ -351,6 +359,27 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
     return date < oneHourFromNow;
   };
 
+  // Get working hours for a specific doctor on a specific date
+  const getDoctorWorkingHours = (availability: DoctorAvailability) => {
+    if (!availability.slots || availability.slots.length === 0) {
+      return "Brak harmonogramu";
+    }
+
+    const workingSlots = availability.slots.filter(slot => slot.status === 'working');
+    if (workingSlots.length === 0) {
+      return "Niedostępny";
+    }
+
+    // Find earliest start and latest end time
+    const startTimes = workingSlots.map(slot => slot.startTime).sort();
+    const endTimes = workingSlots.map(slot => slot.endTime).sort();
+    
+    const earliestStart = startTimes[0];
+    const latestEnd = endTimes[endTimes.length - 1];
+    
+    return `${earliestStart} - ${latestEnd}`;
+  };
+
   const handleDateSelect = async (date: Date) => {
     if (isPastDate(date)) return;
     setSelectedDate(date);
@@ -363,14 +392,14 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
       const availability: DoctorAvailability[] = [];
       
       for (const doctor of doctors) {
-        const doctorSchedule = schedules.find(s => s.doctorId === doctor.$id);
+        const doctorSchedule = schedules.find((s: any) => s.doctorId === doctor.$id);
         if (!doctorSchedule) continue;
 
         const slots = await getScheduleSlots(doctorSchedule.$id);
         const dayOfWeek = date.getDay() === 0 ? 7 : date.getDay();
         
         // Find slots for this day
-        const daySlots = slots.filter(slot => {
+        const daySlots = slots.filter((slot: any) => {
           const isWeeklySlot = slot.dayOfWeek === dayOfWeek && !slot.specificDate;
           const isSpecificDateSlot = slot.specificDate && new Date(slot.specificDate).toDateString() === date.toDateString();
           
@@ -382,7 +411,7 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
             doctor,
             date,
             availableSlots: [],
-            nextAvailableTime: null,
+            nextAvailableTime: undefined,
             isAvailable: false,
             slots: []
           });
@@ -431,6 +460,7 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
                 startTime: slotStartTime.toTimeString().substring(0, 5),
                 endTime: slotEndTime.toTimeString().substring(0, 5),
                 isAvailable,
+                type: slot.type,
                 consultationFee: slot.type === 'nfz' ? 0 : consultationFee
               });
             }
@@ -449,7 +479,7 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
             futureDate.setDate(date.getDate() + i);
             const futureDayOfWeek = futureDate.getDay() === 0 ? 7 : futureDate.getDay();
             
-            const futureSlots = slots.filter(slot => 
+            const futureSlots = slots.filter((slot: any) => 
               slot.dayOfWeek === futureDayOfWeek && slot.status === 'working'
             );
             
@@ -471,7 +501,7 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
             doctor,
             date,
             availableSlots,
-            nextAvailableTime: null,
+            nextAvailableTime: undefined,
             isAvailable: hasAvailableSlots,
             slots: daySlots
           });
@@ -565,7 +595,10 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentWeek(new Date(currentWeek.getTime() - 7 * 24 * 60 * 60 * 1000))}
+          onClick={() => {
+            playButtonSound();
+            setCurrentWeek(new Date(currentWeek.getTime() - 7 * 24 * 60 * 60 * 1000));
+          }}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -577,18 +610,21 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentWeek(new Date(currentWeek.getTime() + 7 * 24 * 60 * 60 * 1000))}
+          onClick={() => {
+            playButtonSound();
+            setCurrentWeek(new Date(currentWeek.getTime() + 7 * 24 * 60 * 60 * 1000));
+          }}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
 
       {/* Week Days */}
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-7 gap-2">
         {isWeekLoading || weekAvailability.size === 0 ? (
           // Show loading spinner for all days
           Array.from({ length: 7 }, (_, index) => (
-            <div key={index} className="p-3 rounded-lg text-center">
+            <div key={index} className="p-4 rounded-lg text-center h-20 sm:h-32 flex flex-col justify-center">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
               <div className="text-xs text-gray-500">Ładowanie...</div>
             </div>
@@ -606,32 +642,42 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
           return (
             <button
               key={index}
-              onClick={() => handleDateSelect(date)}
+              onClick={() => {
+                playButtonSound();
+                handleDateSelect(date);
+              }}
               disabled={isPast || !hasAvailability}
               className={`
-                p-3 rounded-lg text-center transition-all
+                p-4 rounded-lg text-center transition-all sm:h-32 flex flex-col justify-between
                 ${isSelected 
                   ? 'bg-blue-500 text-white' 
                   : isPast || !hasAvailability
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-white text-gray-900 border border-gray-200 hover:bg-gray-50'
                 }
-              `}
+              `}  
             >
-              <div className="text-xs text-gray-500 mb-1">
-                {formatDayName(date)}
-              </div>
-              <div className="font-semibold">
-                {date.getDate()}
-              </div>
-              {isTodayDate && (
-                <div className="text-xs text-gray-600 mt-1">Dziś</div>
-              )}
-              {!isPast && hasAvailability && totalAvailableHours > 0 && (
-                <div className="text-xs font-medium mt-1 text-green-600">
-                  {totalAvailableHours} dostępnych
+              <div className="flex flex-col items-center justify-between h-full">
+                <div className="flex flex-col items-center">
+                  <div className="text-xs text-gray-500 mb-1">
+                    {formatDayName(date)}
+                  </div>
+                  <div className="font-semibold text-lg">
+                    {date.getDate()}
+                  </div>
                 </div>
-              )}
+                
+                <div className="flex flex-col items-center">
+                  {isTodayDate && (
+                    <div className="text-xs text-gray-600 mb-1">Dziś</div>
+                  )}
+                  {!isPast && hasAvailability && totalAvailableHours > 0 && (
+                    <div className="text-xs font-medium text-green-600">
+                      {totalAvailableHours} Wolnych
+                    </div>
+                  )}
+                </div>
+              </div>
             </button>
           );
         })
@@ -653,7 +699,7 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
           <p className="text-gray-600 mt-2">Ładowanie dostępności...</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 grid grid-cols-1 sm:grid-cols-1 gap-3">
           {(() => {
             // Calculate minimum fee across all available doctors
             const allFees = doctorAvailability
@@ -686,11 +732,16 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
                   ? "cursor-pointer hover:shadow-md" 
                   : "cursor-not-allowed opacity-60"
               }`}
-              onClick={() => availability.isAvailable && handleDoctorSelect(availability.doctor)}
+              onClick={() => {
+                if (availability.isAvailable) {
+                  playButtonSound();
+                  handleDoctorSelect(availability.doctor);
+                }
+              }}
             >
               <CardContent className="p-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
                     {availability.doctor.avatar ? (
                       <img
                         src={availability.doctor.avatar}
@@ -704,7 +755,7 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
                     )}
                   </div>
                   
-                  <div className="flex-1">
+                  <div className="flex-1 w-full">
                     <h3 className="font-semibold text-gray-900">{availability.doctor.name}</h3>
                     <p className="text-sm text-gray-500">{availability.doctor.specialization}</p>
                     
@@ -743,10 +794,10 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
                                     className={`text-xs px-2 py-1 rounded font-medium ${
                                       feeInfo.type === 'nfz' 
                                         ? isNFZCheapest 
-                                          ? 'bg-green-100 text-green-700 border border-green-300' 
+                                          ? 'bg-gray-100 text-green-600 font-semibold' 
                                           : 'bg-blue-100 text-blue-700'
                                         : isCheapest
-                                          ? 'bg-green-100 text-green-700 border border-green-300'
+                                          ? 'bg-gray-100 text-green-600 font-semibold'
                                           : 'bg-gray-100 text-gray-700'
                                     }`}
                                   >
@@ -761,19 +812,34 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
                     )}
                   </div>
 
-                  <div className="text-right">
+                  <div className="text-left sm:text-right w-full sm:w-auto">
                     {availability.isAvailable ? (
-                      <Badge variant="default" className="bg-green-100 text-green-700">
-                        {availability.availableSlots.filter(slot => slot.isAvailable).length} dostępnych
-                      </Badge>
+                      <div className="space-y-2">
+                        <Badge variant="default" className="bg-green-100 text-green-700">
+                          {availability.availableSlots.filter(slot => slot.isAvailable).length} Wolnych
+                        </Badge>
+                        <div className="text-xs text-gray-600 font-medium">
+                          {getDoctorWorkingHours(availability)}
+                        </div>
+                      </div>
                     ) : availability.nextAvailableTime ? (
-                      <Badge variant="secondary" className="bg-orange-100 text-orange-700">
-                        Dostępny o {availability.nextAvailableTime}
-                      </Badge>
+                      <div className="space-y-2">
+                        <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                          Dostępny o {availability.nextAvailableTime}
+                        </Badge>
+                        <div className="text-xs text-gray-600 font-medium">
+                          {getDoctorWorkingHours(availability)}
+                        </div>
+                      </div>
                     ) : (
-                      <Badge variant="secondary" className="bg-red-100 text-red-700">
-                        Niedostępny
-                      </Badge>
+                      <div className="space-y-2">
+                        <Badge variant="secondary" className="bg-red-100 text-red-700">
+                          Niedostępny
+                        </Badge>
+                        <div className="text-xs text-gray-600 font-medium">
+                          {getDoctorWorkingHours(availability)}
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -787,6 +853,7 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
       <Button 
         variant="outline" 
         onClick={() => {
+          playButtonSound();
           setSelectedDate(null);
           setCurrentStep("date");
         }}
@@ -806,11 +873,14 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {availableTimeSlots.filter(slot => slot.isAvailable).map((slot, index) => (
           <button
             key={index}
-            onClick={() => handleTimeSelect(slot)}
+            onClick={() => {
+              playButtonSound();
+              handleTimeSelect(slot);
+            }}
             className="p-3 rounded-lg text-center transition-all border bg-white border-gray-200 hover:bg-blue-50 hover:border-blue-200"
           >
             <div className="font-semibold">{slot.startTime}</div>
@@ -827,7 +897,10 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
 
       <Button 
         variant="outline" 
-        onClick={() => setCurrentStep("doctor")}
+        onClick={() => {
+          playButtonSound();
+          setCurrentStep("doctor");
+        }}
         className="w-full"
       >
         Wróć do wyboru lekarza
@@ -885,16 +958,22 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
         </CardContent>
       </Card>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <Button 
           variant="outline" 
-          onClick={() => setCurrentStep("time")}
+          onClick={() => {
+            playButtonSound();
+            setCurrentStep("time");
+          }}
           className="flex-1"
         >
           Wróć do godziny
         </Button>
         <Button 
-          onClick={handleBookingConfirm}
+          onClick={() => {
+            playButtonSound();
+            handleBookingConfirm();
+          }}
           disabled={isLoading}
           className="flex-1 bg-blue-500 hover:bg-blue-600"
         >
@@ -912,9 +991,9 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
   );
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6">
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-8">
           {currentStep === "date" && renderDateSelection()}
           {currentStep === "doctor" && renderDoctorSelection()}
           {currentStep === "time" && renderTimeSelection()}

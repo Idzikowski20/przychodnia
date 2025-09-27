@@ -6,6 +6,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { X } from "lucide-react"
 import { useState } from "react"
 
+// Funkcja do odtwarzania dźwięku przycisku
+const playButtonSound = () => {
+  const audio = new Audio("/assets/sounds/button.mp3");
+  audio.play().catch((error) => {
+    console.error("Błąd odtwarzania dźwięku przycisku:", error);
+  });
+};
+
 interface CancelModalProps {
   isOpen: boolean
   onClose: () => void
@@ -49,7 +57,10 @@ export function CancelModal({ isOpen, onClose, visit }: CancelModalProps) {
           </div>
 
           {/* Action Button */}
-          <Button onClick={handleCancel} className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl py-3">
+          <Button onClick={() => {
+            playButtonSound();
+            handleCancel();
+          }} className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl py-3">
             Anuluj wizytę
           </Button>
         </div>

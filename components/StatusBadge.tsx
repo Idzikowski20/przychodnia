@@ -31,7 +31,7 @@ const getStatusColor = (status: string) => {
       return "text-green-200";
     case "awaiting":
     case "pending":
-      return "text-yellow-500";
+      return "text-black";
     case "cancelled":
       return "text-red-500";
     default:
@@ -49,7 +49,7 @@ const getStatusBgColor = (status: string) => {
       return "bg-green-900";
     case "awaiting":
     case "pending":
-      return "bg-yellow-700";
+      return "bg-yellow-200";
     case "cancelled":
       return "bg-red-600";
     default:
@@ -110,9 +110,9 @@ export const StatusBadge = ({ status }: { status: Status | string }) => {
               alt="status"
               width={24}
               height={24}
-              className="h-fit w-3 brightness-0 invert"
+              className={`h-fit w-3 ${singleStatus === 'awaiting' || singleStatus === 'pending' ? 'brightness-0' : 'brightness-0 invert'}`}
             />
-            <p className="text-12-semibold capitalize text-white">
+            <p className={`text-12-semibold capitalize ${singleStatus === 'awaiting' || singleStatus === 'pending' ? 'text-black' : 'text-white'}`}>
               {getStatusDisplay(singleStatus)}
             </p>
           </div>
@@ -130,9 +130,9 @@ export const StatusBadge = ({ status }: { status: Status | string }) => {
         alt="status"
         width={24}
         height={24}
-        className="h-fit w-3 brightness-0 invert"
+        className={`h-fit w-3 ${singleStatus === 'awaiting' || singleStatus === 'pending' ? 'brightness-0' : 'brightness-0 invert'}`}
       />
-      <p className="text-12-semibold capitalize text-white">
+      <p className={`text-12-semibold capitalize ${singleStatus === 'awaiting' || singleStatus === 'pending' ? 'text-black' : 'text-white'}`}>
         {getStatusDisplay(singleStatus)}
       </p>
     </div>

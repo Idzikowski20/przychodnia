@@ -7,6 +7,7 @@ import { Appointment } from "@/types/appwrite.types";
 
 import { AppointmentDetails } from "../AppointmentDetails";
 import { AppointmentModal } from "../AppointmentModal";
+import { AppointmentConfirmationModal } from "../AppointmentConfirmationModal";
 import { AppointmentNotesModal } from "../AppointmentNotesModal";
 import { StatusBadge } from "../StatusBadge";
 
