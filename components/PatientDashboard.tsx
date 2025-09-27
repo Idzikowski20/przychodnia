@@ -40,9 +40,9 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
     const loadAppointments = async () => {
       if (userId) {
         try {
-          console.log("🔍 Ładuję wizyty dla userId:", userId);
+
           const patientAppointments = await getAppointmentsByPatient(userId);
-          console.log("📅 Pobrane wizyty:", patientAppointments);
+
           setAppointments(patientAppointments || []);
         } catch (error) {
           console.error("Error loading appointments:", error);
@@ -50,7 +50,7 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
           setLoading(false);
         }
       } else {
-        console.log("❌ Brak userId:", userId);
+
         setLoading(false);
       }
     };
@@ -367,7 +367,7 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
         patientId={patient.$id}
         patientName={patient.name}
         onBookingComplete={(appointmentId) => {
-          console.log("Wizyta umówiona:", appointmentId);
+
           setIsBookingModalOpen(false);
           // Odśwież listę wizyt
           window.location.reload();

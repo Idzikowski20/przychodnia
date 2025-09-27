@@ -74,7 +74,7 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
         setExistingAppointments(appointments?.documents || []);
         
         // Debug: log loaded appointments
-        console.log("📋 Loaded existing appointments:", appointments?.documents?.length || 0);
+
       } catch (error) {
         console.error("Error loading data:", error);
       }
@@ -265,7 +265,7 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
   const isSlotAvailable = (doctor: Doctor, startTime: string, endTime: string, date?: Date) => {
     const checkDate = date || selectedDate;
     if (!checkDate) {
-      console.log("❌ No date provided for slot availability check");
+
       return false;
     }
     

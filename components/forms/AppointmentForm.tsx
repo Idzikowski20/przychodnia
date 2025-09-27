@@ -74,8 +74,8 @@ export const AppointmentForm = ({
         setDoctors(activeDoctors || []);
         setSchedules(schedulesData || []);
         
-        console.log("📋 Załadowane harmonogramy:", schedulesData?.length || 0);
-        console.log("👨‍⚕️ Załadowani lekarze:", activeDoctors?.length || 0);
+
+
         
         // Load all schedule slots
         if (schedulesData && schedulesData.length > 0) {
@@ -83,10 +83,10 @@ export const AppointmentForm = ({
           for (const schedule of schedulesData) {
             const slots = await getScheduleSlots(schedule.$id);
             allSlots.push(...slots);
-            console.log(`📅 Harmonogram ${schedule.$id} ma ${slots.length} slotów`);
+
           }
           setScheduleSlots(allSlots);
-          console.log("🎯 Łącznie slotów:", allSlots.length);
+
         }
       } catch (error) {
         console.error("Error loading data:", error);
@@ -98,9 +98,9 @@ export const AppointmentForm = ({
   // Update working days when schedules or selected doctor changes
   useEffect(() => {
     if (selectedDoctor && schedules.length > 0 && scheduleSlots.length > 0) {
-      console.log("🔄 Aktualizuję dni pracy dla", selectedDoctor.name);
+
       const workingDaysList = getWorkingDays(selectedDoctor);
-      console.log("📅 Ustawiam workingDays na:", workingDaysList);
+
       setWorkingDays(workingDaysList);
     } else {
       console.log("❌ Nie mogę zaktualizować workingDays:", {
@@ -137,7 +137,7 @@ export const AppointmentForm = ({
       // Znajdź harmonogram dla tego lekarza
       const doctorSchedule = schedules.find(schedule => schedule.doctorId === doctor.$id);
       if (!doctorSchedule) {
-        console.log("❌ Brak harmonogramu dla lekarza:", doctor.name);
+
         return [];
       }
 
@@ -200,9 +200,9 @@ export const AppointmentForm = ({
           
           if (!isBooked) {
             times.push(timeString);
-            console.log("✅ Dodaję godzinę:", timeString, "z slotu:", slot.startTime, "-", slot.endTime);
+
           } else {
-            console.log("❌ Pomijam zarezerwowaną godzinę:", timeString);
+
           }
 
           currentMinutes += step;
@@ -211,7 +211,7 @@ export const AppointmentForm = ({
 
       // Sortuj godziny
       times.sort();
-      console.log("✅ Dostępne godziny:", times);
+
       return times;
     } catch (error) {
       console.error("Error generating available times:", error);
@@ -263,27 +263,27 @@ export const AppointmentForm = ({
   const getWorkingDays = (doctor: Doctor) => {
     try {
       // Znajdź harmonogram dla tego lekarza
-      console.log("🔍 Szukam harmonogramu dla lekarza:", doctor.name, "ID:", doctor.$id);
+
       console.log("📋 Dostępne harmonogramy:", schedules.map(s => ({ id: s.$id, doctorId: s.doctorId })));
       
       // Sprawdź czy doctorId pasuje do doctor.$id
       const matchingSchedules = schedules.filter(schedule => schedule.doctorId === doctor.$id);
-      console.log("🎯 Pasujące harmonogramy:", matchingSchedules.length);
+
       
       const doctorSchedule = schedules.find(schedule => schedule.doctorId === doctor.$id);
       if (!doctorSchedule) {
-        console.log("❌ Brak harmonogramu dla lekarza:", doctor.name, "ID:", doctor.$id);
-        console.log("🔍 Sprawdzam czy doctorId to string czy object...");
+
+
         schedules.forEach(schedule => {
           console.log(`Harmonogram ${schedule.$id}: doctorId = "${schedule.doctorId}" (typ: ${typeof schedule.doctorId})`);
         });
         return [];
       }
 
-      console.log("✅ Znaleziono harmonogram dla", doctor.name, ":", doctorSchedule.$id);
+
 
       // Pobierz sloty tygodniowe dla tego harmonogramu
-      console.log("🔍 Szukam slotów dla harmonogramu:", doctorSchedule.$id);
+
       console.log("📋 Wszystkie sloty:", scheduleSlots.map(slot => ({ 
         scheduleId: slot.scheduleId, 
         dayOfWeek: slot.dayOfWeek, 
@@ -292,7 +292,7 @@ export const AppointmentForm = ({
       
       // Sprawdź sloty dla konkretnego harmonogramu Sylwii
       const sylwiaSlots = scheduleSlots.filter(slot => slot.scheduleId === doctorSchedule.$id);
-      console.log("🔍 Sloty dla harmonogramu Sylwii:", sylwiaSlots.length);
+
       console.log("🔍 Szczegóły slotów Sylwii:", sylwiaSlots.map(slot => ({ 
         scheduleId: slot.scheduleId, 
         dayOfWeek: slot.dayOfWeek, 
@@ -308,7 +308,7 @@ export const AppointmentForm = ({
         slot.status === 'working'
       );
 
-      console.log("📅 Sloty tygodniowe dla", doctor.name, ":", weeklySlots.length);
+
       console.log("📅 Szczegóły slotów tygodniowych:", weeklySlots.map(slot => ({ 
         dayOfWeek: slot.dayOfWeek, 
         startTime: slot.startTime, 
@@ -339,7 +339,7 @@ export const AppointmentForm = ({
           slot.status === 'working'
         );
         
-        console.log("📅 Sloty dla konkretnych dat:", specificDateSlots.length);
+
         console.log("📅 Szczegóły slotów dla konkretnych dat:", specificDateSlots.map(slot => ({ 
           specificDate: slot.specificDate, 
           startTime: slot.startTime, 
@@ -361,7 +361,7 @@ export const AppointmentForm = ({
         });
       }
 
-      console.log("📅 Dni pracy dla", doctor.name, ":", workingDaysList);
+
       return workingDaysList;
     } catch (error) {
       console.error("Error getting working days:", error);
@@ -371,13 +371,13 @@ export const AppointmentForm = ({
 
   // Update available times when doctor or date changes
   const handleDoctorChange = async (doctorName: string) => {
-    console.log("🔄 handleDoctorChange wywołane z:", doctorName);
+
     const doctor = doctors.find(d => d.name === doctorName);
-    console.log("👨‍⚕️ Znaleziony lekarz:", doctor?.name, "ID:", doctor?.$id);
+
     setSelectedDoctor(doctor || null);
     
     if (doctor) {
-      console.log("👨‍⚕️ Wybrano lekarza:", doctor.name);
+
       
       // Generate times for selected date or tomorrow if no date is selected
       const selectedDate = form.getValues('schedule') || new Date(Date.now() + 24 * 60 * 60 * 1000);

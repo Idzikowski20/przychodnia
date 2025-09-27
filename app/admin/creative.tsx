@@ -13,6 +13,7 @@ import { uploadFileToStorage } from "@/lib/upload"
 import { StatusBadge } from "@/components/StatusBadge"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
 import { useToast } from "@/components/ui/toast"
+import { useLoginSecurity } from "@/hooks/useLoginSecurity"
 
 // Predefiniowane gabinety
 const PREDEFINED_ROOMS = [
@@ -214,11 +215,17 @@ export function DesignaliCreative() {
   
   // System bezpieczeństwa
   const [showSecurityPopup, setShowSecurityPopup] = useState(false)
-  const [sessionMinutes, setSessionMinutes] = useState<number>(10)
+  const [sessionMinutes, setSessionMinutes] = useState<number>(15)
   const [isTimerSettingsOpen, setIsTimerSettingsOpen] = useState(false)
   const { isActive, timeRemaining, formattedTime, resetTimer } = useActivityTracker({
     timeoutMinutes: sessionMinutes,
     onTimeout: () => setShowSecurityPopup(true),
+    enabled: true
+  })
+
+  // Sprawdzanie bezpieczeństwa przy wejściu
+  const { isChecking, updateLastActivity, requireSecurity } = useLoginSecurity({
+    onSecurityRequired: () => setShowSecurityPopup(true),
     enabled: true
   })
   const [appointments, setAppointments] = useState<any>(null)
@@ -513,8 +520,10 @@ export function DesignaliCreative() {
   // Funkcje systemu bezpieczeństwa
   const handleSecuritySuccess = () => {
     setShowSecurityPopup(false)
-    // Resetuj timer - nowa sesja 10 minutowa
+    // Resetuj timer - nowa sesja 15 minutowa
     resetTimer()
+    // Aktualizuj ostatnią aktywność
+    updateLastActivity()
   }
 
   const handleSecurityClose = () => {
@@ -2185,6 +2194,18 @@ export function DesignaliCreative() {
       ...prev,
       [title]: !prev[title],
     }))
+  }
+
+  // Pokazuj loading podczas sprawdzania bezpieczeństwa
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Sprawdzanie bezpieczeństwa...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

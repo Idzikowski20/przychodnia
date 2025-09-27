@@ -146,7 +146,12 @@ export function MonthlyAppointmentsView({
   const getWeeksForMonth = () => {
     const weeks = [];
     for (let i = 0; i < monthDays.length; i += 7) {
-      weeks.push(monthDays.slice(i, i + 7));
+      const week = monthDays.slice(i, i + 7);
+      // Filtruj tylko dni z aktualnego miesiąca
+      const currentMonthWeek = week.filter(day => day && day.getMonth() === currentMonth.getMonth());
+      if (currentMonthWeek.length > 0) {
+        weeks.push(currentMonthWeek);
+      }
     }
     return weeks;
   };
@@ -267,7 +272,7 @@ export function MonthlyAppointmentsView({
           {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'].map((day, index) => (
             <div
               key={day}
-              className="p-2 text-center text-sm font-medium text-gray-600"
+              className="p-2 text-center text-sm font-medium text-gray-600 border-r last:border-r-0"
             >
               {day}
             </div>
@@ -276,27 +281,22 @@ export function MonthlyAppointmentsView({
 
         {/* Tygodnie kalendarza */}
         {weeks.map((week, weekIndex) => (
-          <div key={weekIndex} className="grid grid-cols-7">
+          <div key={weekIndex} className={`grid border-b last:border-b-0`} style={{ gridTemplateColumns: `repeat(${week.length}, 1fr)` }}>
             {week.map((day, dayIndex) => {
               const dayAppointments = getAppointmentsForDay(day);
-              const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
               const isToday = isSameDay(day, new Date());
 
               return (
                 <div
                   key={dayIndex}
-                  className={`p-2 min-h-[120px] border-r ${
+                  className={`p-2 min-h-[120px] border-r last:border-r-0 ${
                     isToday
                       ? 'bg-blue-50'
-                      : isCurrentMonth
-                      ? 'bg-white'
-                      : 'bg-gray-50'
+                      : 'bg-white'
                   }`}
                 >
                   {/* Numer dnia */}
-                  <div className={`text-sm font-medium mb-2 ${
-                    isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
-                  }`}>
+                  <div className="text-sm font-medium mb-2 text-gray-900">
                     {format(day, 'd')}
                   </div>
                   
@@ -340,7 +340,7 @@ export function MonthlyAppointmentsView({
                       })
                     ) : (
                       <div className="text-xs text-gray-400 text-center py-2">
-                        {isCurrentMonth ? "Brak wizyt" : ""}
+                        Brak wizyt
                       </div>
                     )}
                     
