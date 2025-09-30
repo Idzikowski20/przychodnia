@@ -6,6 +6,8 @@ export interface Patient extends Models.Document {
   name: string;
   email: string;
   phone: string;
+  numberVerified: boolean; // Czy numer telefonu został zweryfikowany
+  password?: string; // Hasło użytkownika (opcjonalne)
   birthDate: Date;
   gender: Gender;
   address: string;
@@ -36,6 +38,7 @@ export interface Appointment extends Models.Document {
   userId: string;
   cancellationReason: string | null;
   isCompleted: boolean; // Czy wizyta faktycznie się odbyła
+  amount?: number; // Kwota wizyty
   roomId?: string; // ID gabinetu
   roomName?: string; // Nazwa gabinetu dla łatwiejszego wyświetlania
   roomColor?: string; // Kolor gabinetu dla kalendarza

@@ -27,12 +27,19 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
   const router = useRouter();
   const { toast } = useToast();
   const patientName = patient?.name || "Pacjencie";
+  const [refreshKey, setRefreshKey] = useState(0);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelReasons, setCancelReasons] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+
+  // Funkcja do lokalnego odświeżania danych
+  const refreshData = () => {
+    setRefreshKey(prev => prev + 1);
+    // Można dodać dodatkowe odświeżanie danych tutaj
+  };
   const pageSize = 3;
 
   // Load patient appointments
@@ -367,10 +374,15 @@ export const PatientDashboard = ({ patient, userId }: PatientDashboardProps) => 
         patientId={patient.$id}
         patientName={patient.name}
         onBookingComplete={(appointmentId) => {
-
+          // Zamknij modal
           setIsBookingModalOpen(false);
-          // Odśwież listę wizyt
-          window.location.reload();
+          // Odśwież listę wizyt lokalnie (bez przeładowania strony)
+          refreshData();
+          toast({
+            variant: "default",
+            title: "✅ Wizyta została umówiona",
+            description: "Wizyta została pomyślnie umówiona."
+          });
         }}
         onAppointmentCancelled={() => {
           // Odśwież dostępność w systemie rezerwacji

@@ -118,27 +118,65 @@ import { cn } from "@/lib/utils"
 const sidebarItems = [
   {
     title: "Pulpit",
-    icon: <Home />,
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 12C11.4477 12 11 12.4477 11 13C11 13.5523 11.4477 14 12 14C12.5523 14 13 13.5523 13 13C13 12.4477 12.5523 12 12 12ZM12 12V9M11 18H13M5.67363 16C5.24169 15.0907 5 14.0736 5 13C5 9.13401 8.13401 6 12 6C15.866 6 19 9.13401 19 13C19 14.0736 18.7583 15.0907 18.3264 16M2 13.6404C2 7.76388 6.47715 3 12 3C17.5228 3 22 7.76388 22 13.6404C22 15.841 21.3722 17.8855 20.2968 19.5823C19.9071 20.1972 19.7122 20.5047 19.262 20.7523C18.8118 21 18.3549 21 17.4412 21H6.55884C5.64509 21 5.18821 21 4.73801 20.7523C4.28782 20.5047 4.09295 20.1972 3.70321 19.5823C2.6278 17.8855 2 15.841 2 13.6404Z" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+      </svg>
+    ),
     value: "dashboard",
   },
   {
     title: "Wizyty",
-    icon: <Calendar />,
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+        <path d="M21 5.5C21 6.88071 19.8807 8 18.5 8C17.1193 8 16 6.88071 16 5.5C16 4.11929 17.1193 3 18.5 3C19.8807 3 21 4.11929 21 5.5Z" stroke="black" strokeWidth="1"/>
+        <path d="M13.5882 3H11C7.22876 3 5.34315 3 4.17157 4.17157C3 5.34315 3 7.22876 3 11V13C3 16.7712 3 18.6569 4.17157 19.8284C5.34315 21 7.22876 21 11 21H13C16.7712 21 18.6569 21 19.8284 19.8284C21 18.6569 21 16.7712 21 13V11.4706" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M12 12H7" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M15 16H7" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+      </svg>
+    ),
     value: "wizyty",
   },
   {
     title: "Pacjenci",
-    icon: <Users />,
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 6H7C5.11438 6 4.17157 6 3.58579 6.58579C3 7.17157 3 8.11438 3 10V17C3 18.8856 3 19.8284 3.58579 20.4142C4.17157 21 5.11438 21 7 21H17C18.8856 21 19.8284 21 20.4142 20.4142C21 19.8284 21 18.8856 21 17V10C21 8.11438 21 7.17157 20.4142 6.58579C19.8284 6 18.8856 6 17 6H16" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M10.5 12.5C10.5 13.3284 9.82843 14 9 14C8.17157 14 7.5 13.3284 7.5 12.5C7.5 11.6716 8.17157 11 9 11C9.82843 11 10.5 11.6716 10.5 12.5Z" stroke="black" strokeWidth="1"/>
+        <path d="M12 18V17.9286C12 17.5302 12 17.331 11.9624 17.1662C11.8342 16.6045 11.3955 16.1658 10.8338 16.0376C10.669 16 10.4698 16 10.0714 16H8C7.53501 16 7.30252 16 7.11177 16.0511C6.59413 16.1898 6.18981 16.5941 6.05111 17.1118C6 17.3025 6 17.535 6 18" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M15 13H18" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M15 16H18" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M10.25 6.24985L10.25 5.47472C10.25 5.16873 10.25 5.01573 10.2931 4.87378C10.3121 4.8111 10.3372 4.75043 10.3681 4.69267C10.438 4.56185 10.5462 4.45366 10.7626 4.23729C11.2591 3.74073 11.5074 3.49246 11.8049 3.43328C11.9337 3.40766 12.0663 3.40766 12.1951 3.43328C12.4926 3.49246 12.7409 3.74073 13.2374 4.23729C13.4538 4.45366 13.562 4.56185 13.6319 4.69267C13.6628 4.75043 13.6879 4.8111 13.7069 4.87378C13.75 5.01573 13.75 5.16873 13.75 5.47472V6.24985C13.75 6.95208 13.75 7.3032 13.5815 7.55542C13.5085 7.66461 13.4148 7.75836 13.3056 7.83132C13.0533 7.99985 12.7022 7.99985 12 7.99985C11.2978 7.99985 10.9467 7.99985 10.6944 7.83132C10.5852 7.75836 10.4915 7.66461 10.4185 7.55542C10.25 7.3032 10.25 6.95208 10.25 6.24985Z" stroke="black" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
     value: "patients",
   },
   {
     title: "Grafik",
-    icon: <User />,
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 8.50002C3 6.6144 3 5.67159 3.58579 5.08581C4.17157 4.50002 5.11438 4.50002 6.99999 4.50002L17 4.5C18.8856 4.5 19.8284 4.5 20.4142 5.08578C21 5.67157 21 6.61438 21 8.5V17C21 18.8856 21 19.8285 20.4142 20.4142C19.8284 21 18.8856 21 17 21H7C5.11438 21 4.17157 21 3.58579 20.4142C3 19.8285 3 18.8856 3 17V8.50002Z" stroke="black" strokeWidth="1"/>
+        <path d="M3 10H21" stroke="black" strokeWidth="1"/>
+        <path d="M8.05 14L8 14" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M8.05 17L8 17" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M12.05 14L12 14" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M12.05 17L12 17" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M16.05 14L16 14" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M16.05 17L16 17" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M8 3V6" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+        <path d="M16 3L16 6" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+      </svg>
+    ),
     value: "specialists",
   },
   {
     title: "Płatności",
-    icon: <CreditCard />,
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 6V17C3 18.8856 3 19.8284 3.58579 20.4142C4.17157 21 5.11438 21 7 21H17C18.8856 21 19.8284 21 20.4142 20.4142C21 19.8284 21 18.8856 21 17V12C21 10.1144 21 9.17157 20.4142 8.58579C19.8284 8 18.8856 8 17 8H7.82843C6.67474 8 6.0979 8 5.56035 7.84678C5.26506 7.7626 4.98044 7.64471 4.71212 7.49543C4.22367 7.22367 3.81578 6.81578 3 6ZM3 6C3 5.06812 3 4.60218 3.15224 4.23463C3.35523 3.74458 3.74458 3.35523 4.23463 3.15224C4.60218 3 5.06812 3 6 3H14C15.1046 3 16 3.89543 16 5" stroke="black" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M18 14.5C18 15.3284 17.3284 16 16.5 16C15.6716 16 15 15.3284 15 14.5C15 13.6716 15.6716 13 16.5 13C17.3284 13 18 13.6716 18 14.5Z" stroke="black" strokeWidth="1"/>
+      </svg>
+    ),
     value: "payments",
   },
 ]
@@ -416,38 +454,44 @@ export function DesignaliCreative() {
   }, [isNewAppointment, titleAnimation])
 
 
-  // Automatyczne odświeżanie danych co 60 sekund
+  // Automatyczne odświeżanie danych co 30 sekund (zmniejszone z 10s)
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const [appointmentsData, patientsData, doctorsData] = await Promise.all([
-          getRecentAppointmentList().catch(err => {
-            console.error("Błąd pobierania wizyt:", err)
-            return appointments // Zwróć poprzednie dane
-          }),
-          getPatients().catch(err => {
-            console.error("Błąd pobierania pacjentów:", err)
-            return patients || []
-          }),
-          getDoctors().catch(err => {
-            console.error("Błąd pobierania lekarzy:", err)
-            return doctors || []
-          })
-        ])
+        // Pobierz tylko wizyty (najważniejsze dane)
+        const appointmentsData = await getRecentAppointmentList().catch(err => {
+          console.error("Błąd pobierania wizyt:", err)
+          return appointments // Zwróć poprzednie dane
+        })
         
         if (appointmentsData) {
           setAppointments(appointmentsData)
         }
-        if (patientsData) {
-          setPatients(patientsData)
-        }
-        if (doctorsData) {
-          setDoctors(doctorsData)
+        
+        // Pobierz pacjentów i lekarzy rzadziej (co 2 minuty)
+        if (Math.random() < 0.1) { // 10% szansy na pobranie
+          const [patientsData, doctorsData] = await Promise.all([
+            getPatients().catch(err => {
+              console.error("Błąd pobierania pacjentów:", err)
+              return patients || []
+            }),
+            getDoctors().catch(err => {
+              console.error("Błąd pobierania lekarzy:", err)
+              return doctors || []
+            })
+          ])
+          
+          if (patientsData) {
+            setPatients(patientsData)
+          }
+          if (doctorsData) {
+            setDoctors(doctorsData)
+          }
         }
       } catch (error) {
         console.error("❌ Błąd odświeżania danych:", error)
       }
-    }, 10000) // 10 sekund
+    }, 30000) // 30 sekund (zamiast 10)
 
     return () => clearInterval(interval)
   }, [appointments, patients, doctors])
@@ -2231,11 +2275,11 @@ export function DesignaliCreative() {
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
               <div className="flex aspect-square size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 text-white">
-                <Wand2 className="size-5" />
+                <img src="/assets/images/carepulse.png" alt="Logo" className="size-5" />
               </div>
               <div>
-                <h2 className="font-semibold">Designali</h2>
-                <p className="text-xs text-muted-foreground">Creative Suite</p>
+                <h2 className="font-semibold">CarePulse</h2>
+                <p className="text-xs text-muted-foreground">Panel Administratora</p>
               </div>
             </div>
             <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
@@ -2272,7 +2316,10 @@ export function DesignaliCreative() {
           <div className="border-t p-3">
             <div className="space-y-1">
               <button className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium hover:bg-muted">
-                <Settings className="h-5 w-5" />
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M19.5549 10.6412C20.3556 10.1761 20.6309 9.15209 20.1714 8.34816L19.3411 6.89536C18.8707 6.07218 17.8203 5.78887 16.9997 6.26383C15.8596 6.92371 14.4329 6.07159 14.4329 4.75429C14.4329 3.79494 13.6552 3 12.6958 3H11.0821C10.1459 3 9.38699 3.75891 9.38699 4.69507V4.81514C9.38699 6.06839 8.0289 6.85046 6.94495 6.22141C6.16637 5.76958 5.16886 6.03634 4.71974 6.81648L3.83811 8.34789C3.37563 9.15123 3.64979 10.1773 4.45133 10.6429C5.56596 11.2904 5.56353 12.9023 4.45117 13.5537C3.65059 14.0225 3.37509 15.0511 3.83797 15.8551L4.71974 17.3868C5.16886 18.167 6.16921 18.4321 6.94779 17.9802C8.0283 17.3532 9.38699 18.1299 9.38699 19.3792C9.38699 20.2744 10.1126 21 11.0078 21H12.7701C13.6884 21 14.4329 20.2556 14.4329 19.3373C14.4329 18.0565 15.82 17.2567 16.9285 17.8982L16.9997 17.9395C17.8203 18.4144 18.8707 18.1311 19.3411 17.3079L20.1716 15.8549C20.6314 15.0503 20.3548 14.0237 19.555 13.5554C18.4414 12.9032 18.439 11.2895 19.5549 10.6412Z" stroke="#231F20" strokeWidth="1" strokeMiterlimit="10" strokeLinecap="round"/>
+                  <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="black" strokeWidth="1"/>
+                </svg>
                 <span>Ustawienia</span>
               </button>
               <button className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm font-medium hover:bg-muted">
@@ -2302,12 +2349,12 @@ export function DesignaliCreative() {
         <div className="flex h-full flex-col">
           <div className="p-4">
             <div className="flex items-center gap-3">
-              <div className="flex aspect-square size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 text-white">
-                <Wand2 className="size-5" />
+              <div className="flex">
+                <img src="/assets/images/carepulse.png" alt="Logo" className="w-15 h-5" />
               </div>
               <div>
-                <h2 className="font-semibold">Designali</h2>
-                <p className="text-xs text-muted-foreground">Creative Suite</p>
+                <h2 className="font-semibold">CarePulse</h2>
+                <p className="text-xs text-muted-foreground">Panel Administratora</p>
               </div>
             </div>
           </div>
@@ -2343,7 +2390,11 @@ export function DesignaliCreative() {
             <div className="space-y-2">
               <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-3">
-                  <Bell className="h-5 w-5 text-gray-600" />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 18C15 19.6569 13.6569 21 12 21C10.3431 21 9 19.6569 9 18" stroke="black" strokeWidth="1"/>
+                    <path d="M17.7271 9L18.3933 12.2569C18.6247 13.3885 19.2163 14.4147 20.0796 15.1821L20.1787 15.2701C20.658 15.6961 20.7756 16.3986 20.4612 16.9575C20.099 17.6015 19.4176 18 18.6788 18H5.32088C4.58204 18 3.90065 17.6015 3.53843 16.9575C3.22404 16.3986 3.34165 15.6961 3.82094 15.2701L3.92 15.1821C4.78328 14.4147 5.3749 13.3885 5.60636 12.2569L6.59803 7.40872C7.12291 4.84266 9.38062 3 11.9998 3" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+                    <path d="M18 5C18 6.10457 17.1046 7 16 7C14.8954 7 14 6.10457 14 5C14 3.89543 14.8954 3 16 3C17.1046 3 18 3.89543 18 5Z" stroke="black" strokeWidth="1"/>
+                  </svg>
                   <span className="text-sm font-medium text-gray-700">Powiadomienia</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2378,7 +2429,10 @@ export function DesignaliCreative() {
           <div className="border-t p-3">
             <div className="space-y-1">
               <button className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium hover:bg-muted">
-                <Settings className="h-5 w-5" />
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M19.5549 10.6412C20.3556 10.1761 20.6309 9.15209 20.1714 8.34816L19.3411 6.89536C18.8707 6.07218 17.8203 5.78887 16.9997 6.26383C15.8596 6.92371 14.4329 6.07159 14.4329 4.75429C14.4329 3.79494 13.6552 3 12.6958 3H11.0821C10.1459 3 9.38699 3.75891 9.38699 4.69507V4.81514C9.38699 6.06839 8.0289 6.85046 6.94495 6.22141C6.16637 5.76958 5.16886 6.03634 4.71974 6.81648L3.83811 8.34789C3.37563 9.15123 3.64979 10.1773 4.45133 10.6429C5.56596 11.2904 5.56353 12.9023 4.45117 13.5537C3.65059 14.0225 3.37509 15.0511 3.83797 15.8551L4.71974 17.3868C5.16886 18.167 6.16921 18.4321 6.94779 17.9802C8.0283 17.3532 9.38699 18.1299 9.38699 19.3792C9.38699 20.2744 10.1126 21 11.0078 21H12.7701C13.6884 21 14.4329 20.2556 14.4329 19.3373C14.4329 18.0565 15.82 17.2567 16.9285 17.8982L16.9997 17.9395C17.8203 18.4144 18.8707 18.1311 19.3411 17.3079L20.1716 15.8549C20.6314 15.0503 20.3548 14.0237 19.555 13.5554C18.4414 12.9032 18.439 11.2895 19.5549 10.6412Z" stroke="#231F20" strokeWidth="1" strokeMiterlimit="10" strokeLinecap="round"/>
+                  <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="black" strokeWidth="1"/>
+                </svg>
                 <span>Ustawienia</span>
               </button>
             </div>
@@ -2424,7 +2478,10 @@ export function DesignaliCreative() {
                   aria-label="Ustawienia czasomierza"
                   onClick={() => setIsTimerSettingsOpen(true)}
                 >
-                  <Settings className="h-4 w-4 text-gray-600" />
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19.5549 10.6412C20.3556 10.1761 20.6309 9.15209 20.1714 8.34816L19.3411 6.89536C18.8707 6.07218 17.8203 5.78887 16.9997 6.26383C15.8596 6.92371 14.4329 6.07159 14.4329 4.75429C14.4329 3.79494 13.6552 3 12.6958 3H11.0821C10.1459 3 9.38699 3.75891 9.38699 4.69507V4.81514C9.38699 6.06839 8.0289 6.85046 6.94495 6.22141C6.16637 5.76958 5.16886 6.03634 4.71974 6.81648L3.83811 8.34789C3.37563 9.15123 3.64979 10.1773 4.45133 10.6429C5.56596 11.2904 5.56353 12.9023 4.45117 13.5537C3.65059 14.0225 3.37509 15.0511 3.83797 15.8551L4.71974 17.3868C5.16886 18.167 6.16921 18.4321 6.94779 17.9802C8.0283 17.3532 9.38699 18.1299 9.38699 19.3792C9.38699 20.2744 10.1126 21 11.0078 21H12.7701C13.6884 21 14.4329 20.2556 14.4329 19.3373C14.4329 18.0565 15.82 17.2567 16.9285 17.8982L16.9997 17.9395C17.8203 18.4144 18.8707 18.1311 19.3411 17.3079L20.1716 15.8549C20.6314 15.0503 20.3548 14.0237 19.555 13.5554C18.4414 12.9032 18.439 11.2895 19.5549 10.6412Z" stroke="#231F20" strokeWidth="1" strokeMiterlimit="10" strokeLinecap="round"/>
+                    <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="black" strokeWidth="1"/>
+                  </svg>
                 </button>
               </div>
             </div>
@@ -2474,18 +2531,6 @@ export function DesignaliCreative() {
                 transition={{ duration: 0.2 }}
               >
                 <TabsContent value="dashboard" className="space-y-8 mt-0">
-                  <section>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h1 className="sp-h1 text-gray-900">Pulpit</h1>
-                        <p className="sp-desc">Szybki przegląd najważniejszych informacji</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-600">Dzisiaj, {new Date().toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}</p>
-                        <p className="text-sm text-gray-600">8:00 - 16:00</p>
-                      </div>
-                    </div>
-                  </section>
 
                   {/* Karty statystyk */}
                   <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -2772,15 +2817,33 @@ export function DesignaliCreative() {
                                               {/* Przyciski akcji */}
                                               <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
                                                 <div className="flex space-x-2">
-                                                  <button className="w-8 h-8 bg-gray-100 hover:bg-red-50 rounded-lg flex items-center justify-center transition-colors">
-                                                    <Trash className="h-4 w-4 text-red-500" />
-                                                  </button>
-                                                  <button className="w-8 h-8 bg-gray-100 hover:bg-blue-50 rounded-lg flex items-center justify-center transition-colors">
-                                                    <Users className="h-4 w-4 text-gray-600" />
-                                                  </button>
-                                                  <button className="w-8 h-8 bg-gray-100 hover:bg-blue-50 rounded-lg flex items-center justify-center transition-colors">
-                                                    <Edit className="h-4 w-4 text-gray-600" />
-                                                  </button>
+                                                  <AppointmentModal
+                                                    patientId={appointment.patient?.$id || ''}
+                                                    userId={appointment.userId}
+                                                    appointment={appointment}
+                                                    type="cancel"
+                                                    title="Anuluj wizytę"
+                                                    description="Czy na pewno chcesz anulować tę wizytę?"
+                                                    trigger={
+                                                      <button 
+                                                        className="w-8 h-8 bg-gray-100 hover:bg-red-50 rounded-lg flex items-center justify-center transition-colors"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                      >
+                                                        <Trash className="h-4 w-4 text-red-500" />
+                                                      </button>
+                                                    }
+                                                    onUpdated={() => {
+                                                      // Refresh appointments after cancellation
+                                                      window.location.reload();
+                                                    }}
+                                                  />
+                                                  <div onClick={(e) => e.stopPropagation()}>
+                                                    <AppointmentDetails
+                                                      appointment={appointment}
+                                                      userId={appointment.userId}
+                                                      patientId={appointment.patient?.$id || ''}
+                                                    />
+                                                  </div>
                                                 </div>
                                                 {(() => {
                                                   let statuses: string[]
@@ -2861,115 +2924,81 @@ export function DesignaliCreative() {
                 </TabsContent>
 
                 <TabsContent value="wizyty" className="space-y-8 mt-0">
-                  <section>
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5 }}
-                      className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-3xl p-8 mb-8"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-4">
-                            <div className="rounded-2xl bg-blue-100 p-3">
-                              <Heart className="h-8 w-8 text-blue-600" />
+
+
+                  {/* Karty statystyk */}
+                  <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <Card className="bg-gradient-to-b from-blue-500/20 to-transparent border border-gray-200  transition-all duration-300 cursor-pointer group">
+                      <CardContent className="p-6 h-48 flex flex-col justify-between">
+                        <div className="flex items-center justify-center w-12 h-12 bg-blue-500 rounded-xl mb-4">
+                          <Calendar className="h-6 w-6 text-white" />
                             </div>
-                            <div>
-                              <h1 className="text-3xl font-bold text-gray-900">Witaj w Poradni Psychologicznej</h1>
-                              <p className="text-gray-600 mt-1">
-                                Profesjonalna opieka psychologiczna dla Twojego zdrowia psychicznego
-                              </p>
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div>
+                            <h3 className="sp-body text-gray-600 mb-2">Dzisiejsze wizyty</h3>
+                            <p className="text-3xl font-bold text-gray-900 mb-3">{dashboardStats?.todayAppointments || 0}</p>
+                            <div className="flex items-center text-sm">
+                              <span className="text-green-600">+12%</span>
+                              <span className="text-gray-500 ml-1">vs wczoraj</span>
+                            </div>
                             </div>
                           </div>
-                          <div className="flex gap-4">
-                            <Button className="text-white rounded-2xl px-6">
-                              Umów wizytę
-                            </Button>
-                            <Button variant="outline" className="rounded-2xl px-6 bg-transparent">
-                              Zobacz kalendarz
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </section>
-
-                  <section>
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5 }}
-                      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5"
-                    >
-                      {/* Wizyty dzisiaj */}
-                      <Card className="rounded-3xl bg-white border-gray-200 p-6">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-2xl bg-blue-100 p-3">
-                            <Calendar className="h-6 w-6 text-blue-600" />
-                          </div>
-                          <div>
-                            <div className="text-sm text-gray-600 mb-1">Wizyty dzisiaj</div>
-                            <div className="text-2xl font-bold text-gray-900">0 / 15</div>
-                            <div className="text-sm text-red-500 mt-1">0% Nowe wizyty czekają! 😊</div>
-                          </div>
-                        </div>
+                        </CardContent>
                       </Card>
 
-                      {/* Wszystkie wizyty */}
-                      <Card className="rounded-3xl bg-white border-gray-200 p-6">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-2xl bg-purple-100 p-3">
-                            <FileText className="h-6 w-6 text-purple-600" />
-                          </div>
+                    <Card className="bg-gradient-to-b from-green-500/20 to-transparent border border-gray-200 transition-all duration-300 cursor-pointer group">
+                      <CardContent className="p-6 h-48 flex flex-col justify-between">
+                        <div className="flex items-center justify-center w-12 h-12 bg-green-500 rounded-xl mb-4">
+                          <Users className="h-6 w-6 text-white" />
+                            </div>
+                        <div className="flex-1 flex flex-col justify-between">
                           <div>
-                            <div className="text-sm text-gray-600 mb-1">Wszystkie wizyty <span className="text-gray-500">(30 dni)</span></div>
-                            <div className="text-2xl font-bold text-gray-900">66</div>
-                            <div className="text-sm text-green-500 mt-1">⬆️ 20% vs poprzednie 30 dni</div>
+                            <h3 className="sp-body text-gray-600 mb-2">Aktywni pacjenci</h3>
+                            <p className="text-3xl font-bold text-gray-900 mb-3">{dashboardStats?.activePatients || 0}</p>
+                            <div className="flex items-center text-sm">
+                              <span className="text-green-600">+8%</span>
+                              <span className="text-gray-500 ml-1">vs miesiąc</span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        </CardContent>
                       </Card>
 
-                      {/* Odwołane wizyty */}
-                      <Card className="rounded-3xl bg-white border-gray-200 p-6">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-2xl bg-red-100 p-3">
-                            <X className="h-6 w-6 text-red-600" />
-                          </div>
+                    <Card className="bg-gradient-to-b from-purple-500/20 to-transparent border border-gray-200 transition-all duration-300 cursor-pointer group">
+                      <CardContent className="p-6 h-48 flex flex-col justify-between">
+                        <div className="flex items-center justify-center w-12 h-12 bg-purple-500 rounded-xl mb-4">
+                          <CreditCard className="h-6 w-6 text-white" />
+                            </div>
+                        <div className="flex-1 flex flex-col justify-between">
                           <div>
-                            <div className="text-sm text-gray-600 mb-1">Odwołane wizyty <span className="text-gray-500">(30 dni)</span></div>
-                            <div className="text-2xl font-bold text-gray-900">4</div>
+                            <h3 className="sp-body text-gray-600 mb-2">Przychód (30 dni)</h3>
+                            <p className="text-3xl font-bold text-gray-900 mb-3">{dashboardStats?.monthlyRevenue || 0} zł</p>
+                            <div className="flex items-center text-sm">
+                              <span className="text-green-600">+15%</span>
+                              <span className="text-gray-500 ml-1">vs poprzedni</span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        </CardContent>
                       </Card>
 
-                      {/* Uzupełnione karty */}
-                      <Card className="rounded-3xl bg-white border-gray-200 p-6">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-2xl bg-orange-100 p-3">
-                            <Edit className="h-6 w-6 text-orange-600" />
-                          </div>
+                    <Card className="bg-gradient-to-b from-orange-500/20 to-transparent border border-gray-200 transition-all duration-300 cursor-pointer group">
+                      <CardContent className="p-6 h-48 flex flex-col justify-between">
+                        <div className="flex items-center justify-center w-12 h-12 bg-orange-500 rounded-xl mb-4">
+                          <CheckCircle className="h-6 w-6 text-white" />
+                            </div>
+                        <div className="flex-1 flex flex-col justify-between">
                           <div>
-                            <div className="text-sm text-gray-600 mb-1">Uzupełnione karty</div>
-                            <div className="text-2xl font-bold text-gray-900">28 / 63</div>
-                            <div className="text-sm text-red-500 mt-1">44% Dasz radę! 🧑‍💻</div>
+                            <h3 className="sp-body text-gray-600 mb-2">Ukończone zadania</h3>
+                            <p className="text-3xl font-bold text-gray-900 mb-3">{tasks.filter(t => t.completed).length}</p>
+                            <div className="flex items-center text-sm">
+                              <span className="text-green-600">+5</span>
+                              <span className="text-gray-500 ml-1">w tym tygodniu</span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        </CardContent>
                       </Card>
-
-                      {/* Nowi pacjenci */}
-                      <Card className="rounded-3xl bg-white border-gray-200 p-6">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-2xl bg-green-100 p-3">
-                            <Users className="h-6 w-6 text-green-600" />
-                          </div>
-                          <div>
-                            <div className="text-sm text-gray-600 mb-1">Nowi pacjenci <span className="text-gray-500">(30 dni)</span></div>
-                            <div className="text-2xl font-bold text-gray-900">8</div>
-                            <div className="text-sm text-green-500 mt-1">⬆️ 33% vs poprzednie 30 dni</div>
-                          </div>
-                        </div>
-                      </Card>
-                    </motion.div>
                   </section>
 
                   <section className="space-y-4">
@@ -3435,48 +3464,65 @@ export function DesignaliCreative() {
                                         <>
                                           {hasAwaiting && (
                                             <Button
-                                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                              className="px-3 py-1.5 bg-transparent hover:bg-gray-100 text-black border border-gray-300 rounded-[0.25rem] text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                               onClick={() => handleConfirmAppointment(visit)}
                                               disabled={pendingIds.has(visit.$id)}
                                             >
                                               {pendingIds.has(visit.$id) ? (
                                                 <div className="flex items-center gap-2">
-                                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
                                                   Potwierdzanie...
                                                 </div>
                                               ) : (
-                                                "Potwierdź wizytę"
+                                                <div className="flex items-center gap-2">
+                                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="black" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                                                  </svg>
+                                                  Potwierdź wizytę
+                                                </div>
                                               )}
                                             </Button>
                                           )}
                                           {hasAccepted && (
                                                       <>
                                             <Button
-                                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm"
+                                              className="px-3 py-1.5 bg-transparent hover:bg-gray-100 text-black border border-gray-300 rounded-[0.25rem] text-sm"
                                               onClick={() => handleRescheduleAppointment(visit)}
                                               disabled={pendingIds.has(visit.$id)}
                                             >
                                               {pendingIds.has(visit.$id) ? (
                                                 <div className="flex items-center gap-2">
-                                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
                                                   Przełożenie...
                                                 </div>
                                               ) : (
-                                                "Przełóż wizytę"
+                                                <div className="flex items-center gap-2">
+                                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M21 6.54919L18.4508 9.09839M21 6.54919L18.4508 4M21 6.54919L7 6.54919C5.11438 6.54919 4.17157 6.54919 3.58579 7.13498C3 7.72077 3 8.66358 3 10.5492L3 11.0002" stroke="black" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                                                    <path d="M3 17.451L5.54919 14.9019M3 17.451L5.54919 20.0002M3 17.451L17 17.451C18.8856 17.4511 19.8284 17.451 20.4142 16.8653C21 16.2795 21 15.3367 21 13.451V13" stroke="black" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                                                  </svg>
+                                                  Przełóż wizytę
+                                                </div>
                                               )}
                                             </Button>
                                             <button
                                               onClick={handleMarkAsCompleted}
                                               disabled={pendingIds.has(visit.$id)}
-                                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                              className="px-3 py-1.5 bg-transparent hover:bg-gray-100 text-black border border-gray-300 rounded-[0.25rem] transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                               {pendingIds.has(visit.$id) ? (
                                                 <div className="flex items-center gap-2">
-                                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
                                                   Oznaczanie...
                                                 </div>
                                               ) : (
-                                                "Oznacz jako odbytą"
+                                                <div className="flex items-center gap-2">
+                                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="black" strokeWidth="1"/>
+                                                    <path d="M8 11.7236L9.53269 13.2563C10.1994 13.923 10.5327 14.2563 10.9469 14.2563C11.3611 14.2563 11.6945 13.923 12.3611 13.2563L16.6704 8.94702" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+                                                  </svg>
+                                                  Oznacz jako odbytą
+                                                </div>
                                               )}
                                             </button>
                                                       </>
@@ -3490,6 +3536,18 @@ export function DesignaliCreative() {
                                               title="Anuluj wizytę"
                                               description="Czy na pewno chcesz anulować swoją wizytę?"
                                               isAdminModal={true}
+                                              trigger={
+                                                <button className="px-3 py-1.5 bg-transparent hover:bg-gray-100 text-black border border-gray-300 rounded-[0.25rem] text-sm">
+                                                  <div className="flex items-center gap-2">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                      <path d="M5 7L5.29949 14.7868C5.41251 17.7252 5.46902 19.1944 6.40719 20.0972C7.34537 21 8.81543 21 11.7555 21H12.2433C15.1842 21 16.6547 21 17.5928 20.0972C18.531 19.1944 18.5875 17.7252 18.7006 14.7868L19 7" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+                                                      <path d="M20.4706 4.43329C18.6468 4.27371 17.735 4.19392 16.8229 4.13611C13.6109 3.93249 10.3891 3.93249 7.17707 4.13611C6.26506 4.19392 5.35318 4.27371 3.52942 4.43329" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+                                                      <path d="M13.7647 3.95212C13.7647 3.95212 13.3993 2.98339 11.6471 2.9834C9.8949 2.9834 9.52942 3.95211 9.52942 3.95211" stroke="black" strokeWidth="1" strokeLinecap="round"/>
+                                                    </svg>
+                                                    Anuluj
+                                                  </div>
+                                                </button>
+                                              }
                                               onUpdated={({ id }) => {
                                                 // Optymistycznie usuń/anuluj w UI
                                                 setAppointments((prev: any) => prev ? { ...prev, documents: prev.documents.map((a: any) => a.$id === id ? { ...a, status: ["cancelled"] } : a) } : prev)

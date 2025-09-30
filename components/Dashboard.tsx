@@ -10,6 +10,7 @@ import {
   getRevenueData, 
   getUpcomingAppointments 
 } from "@/lib/actions/appointment.actions";
+import { getLast30DaysRevenue, getTotalRevenue, getRevenueEntries } from "@/lib/actions/revenue.actions";
 import { 
   getTasks, 
   createTask, 
@@ -42,7 +43,9 @@ export const Dashboard = ({
     cancelledAppointments30Days: 0,
     completedAppointments30Days: 0,
     newPatients30Days: 18,
-    unapprovedCards: 4
+    unapprovedCards: 4,
+    totalRevenue30Days: 0,
+    revenueGrowth: 0
   });
   
   const [revenueData, setRevenueData] = useState({
@@ -62,23 +65,59 @@ export const Dashboard = ({
         setLoading(true);
         
         // Ładowanie danych równolegle
-        const [statsData, revenueDataResult, tasksData, appointmentsData] = await Promise.all([
+        console.log("Dashboard: Rozpoczynanie ładowania danych...");
+        const [statsData, revenueDataResult, tasksData, appointmentsData, revenueEntries] = await Promise.all([
           getDashboardStats(),
           getRevenueData(),
           getTasks(),
-          getUpcomingAppointments(5)
+          getUpcomingAppointments(5),
+          getRevenueEntries({})
         ]);
+        console.log("Dashboard: Dane załadowane:", { statsData, revenueDataResult, tasksData, appointmentsData, revenueEntries });
+
+        // Oblicz rzeczywiste dane dochodów - użyj wszystkich danych
+        const totalRevenue30Days = revenueEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+        
+        // Oblicz wzrost w porównaniu do poprzedniego miesiąca
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+        
+        // Dochody z bieżącego miesiąca
+        const currentMonthEntries = revenueEntries.filter(entry => {
+          const entryDate = new Date(entry.date);
+          return entryDate.getMonth() === currentMonth && entryDate.getFullYear() === currentYear;
+        });
+        const currentMonthRevenue = currentMonthEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+        
+        // Dochody z poprzedniego miesiąca
+        const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+        
+        const previousMonthEntries = revenueEntries.filter(entry => {
+          const entryDate = new Date(entry.date);
+          return entryDate.getMonth() === previousMonth && entryDate.getFullYear() === previousYear;
+        });
+        const previousMonthRevenue = previousMonthEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+        
+        const revenueGrowth = previousMonthRevenue === 0 ? (currentMonthRevenue > 0 ? 100 : 0) : 
+          ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100;
 
         if (statsData) {
           setStats({
             ...statsData,
             newPatients30Days: 18,
-            unapprovedCards: 4
+            unapprovedCards: 4,
+            totalRevenue30Days,
+            revenueGrowth
           });
         }
 
         if (revenueDataResult) {
+          console.log("Dashboard: Otrzymane dane przychodów:", revenueDataResult);
           setRevenueData(revenueDataResult);
+        } else {
+          console.log("Dashboard: Brak danych przychodów");
         }
 
         if (tasksData) {
@@ -88,8 +127,13 @@ export const Dashboard = ({
         if (appointmentsData) {
           setUpcomingAppointments(appointmentsData);
         }
+
+        console.log(`Dashboard: Przychód z ostatnich 30 dni: ${totalRevenue30Days} zł, wzrost: ${revenueGrowth.toFixed(1)}%`);
+        console.log(`Dashboard: Wszystkie wpisy dochodów:`, revenueEntries);
+        console.log(`Dashboard: Suma wszystkich dochodów: ${totalRevenue30Days} zł`);
       } catch (error) {
         console.error("Błąd podczas ładowania danych dashboard:", error);
+        console.error("Szczegóły błędu:", error);
       } finally {
         setLoading(false);
       }

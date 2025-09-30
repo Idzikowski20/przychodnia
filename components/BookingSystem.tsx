@@ -561,7 +561,8 @@ const BookingSystem = ({ userId, patientId, patientName, onBookingComplete, onAp
         schedule: appointmentDateTime,
         status: ["pending"], // Set as pending for confirmation
         note: "",
-        isCompleted: false
+        isCompleted: false,
+        amount: selectedTimeSlot.consultationFee || 0 // Zapisz kwotę wizyty
       };
 
       const newAppointment = await createAppointment(appointmentData);

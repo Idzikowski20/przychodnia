@@ -69,6 +69,7 @@ const RegisterForm = ({ user, isAdminModal = false }: { user: User; isAdminModal
         name: values.name,
         email: values.email,
         phone: values.phone,
+        numberVerified: true, // Ustawiamy na true po weryfikacji
         birthDate: new Date(values.birthDate),
         gender: genderMapping[values.gender] || "male",
         address: values.address,

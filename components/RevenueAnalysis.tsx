@@ -7,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
 import { ChevronLeft, ChevronRight, Calendar, TrendingUp, DollarSign, ChevronDown, BarChart3 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, eachDayOfInterval, eachMonthOfInterval, addMonths, subMonths, addYears, subYears } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, eachDayOfInterval, eachMonthOfInterval, addMonths, subMonths, addYears, subYears, subDays } from "date-fns";
 import { pl } from "date-fns/locale";
-import { getMonthlyRevenue, getYearlyRevenue, RevenueEntry } from "@/lib/actions/revenue.actions";
+import { getMonthlyRevenue, getYearlyRevenue, getRevenueEntries, getTotalRevenue, getLast30DaysRevenue, getLast7DaysRevenue, RevenueEntry } from "@/lib/actions/revenue.actions";
 
 interface RevenueAnalysisProps {
   appointments: any[];
@@ -33,20 +33,26 @@ export function RevenueAnalysis({ appointments, schedules = [], scheduleSlots = 
   const [timePeriod, setTimePeriod] = useState<"year" | "last30days" | "last7days">("last30days");
 
 
-  // Pobierz dane dochodów z bazy (tymczasowo wyłączone z powodu błędów)
+  // Pobierz dane dochodów z bazy revenue
   useEffect(() => {
     const fetchRevenueData = async () => {
       setLoading(true);
       try {
-        // Tymczasowo wyłączone - używamy fallback z wizyt
-        // if (viewType === "monthly") {
-        //   const data = await getMonthlyRevenue(currentDate.getFullYear(), currentDate.getMonth() + 1);
-        //   setRevenueEntries(data);
-        // } else {
-        //   const data = await getYearlyRevenue(selectedYear);
-        //   setRevenueEntries(data);
-        // }
-        setRevenueEntries([]); // Używamy fallback
+        let data: RevenueEntry[] = [];
+        
+        if (timePeriod === "last30days") {
+          data = await getRevenueEntries({});
+        } else if (timePeriod === "last7days") {
+          data = await getRevenueEntries({});
+        } else if (timePeriod === "year") {
+          data = await getRevenueEntries({});
+        }
+        
+        console.log(`Pobrano ${data.length} wpisów dochodów dla okresu ${timePeriod}`);
+        console.log("RevenueAnalysis: Pobrane dane:", data);
+        const totalAmount = data.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+        console.log(`RevenueAnalysis: Suma dochodów: ${totalAmount} zł`);
+        setRevenueEntries(data);
       } catch (error) {
         console.error("Błąd pobierania danych dochodów:", error);
         setRevenueEntries([]);
@@ -56,81 +62,28 @@ export function RevenueAnalysis({ appointments, schedules = [], scheduleSlots = 
     };
 
     fetchRevenueData();
-  }, [currentDate, selectedYear, viewType]);
+  }, [timePeriod, selectedYear]);
 
-  // Funkcja do obliczania przychodów dla dowolnego okresu
-  const calculateRevenueData = (appointments: any[], schedules: any[], scheduleSlots: any[], startDate: Date, endDate: Date) => {
+  // Funkcja do obliczania przychodów z tabeli revenue
+  const calculateRevenueDataFromEntries = (revenueEntries: RevenueEntry[], startDate: Date, endDate: Date) => {
+    console.log("calculateRevenueDataFromEntries: startDate:", startDate, "endDate:", endDate);
+    console.log("calculateRevenueDataFromEntries: revenueEntries:", revenueEntries);
+    
     const days = eachDayOfInterval({ start: startDate, end: endDate });
+    console.log("calculateRevenueDataFromEntries: days:", days.length);
     
     return days.map(day => {
       const dayStr = format(day, "yyyy-MM-dd");
-      const dayAppointments = appointments.filter(appointment => {
-        const appointmentDate = new Date(appointment.schedule);
-        const appointmentDateStr = format(appointmentDate, "yyyy-MM-dd");
-        return appointmentDateStr === dayStr;
+      const dayEntries = revenueEntries.filter(entry => {
+        const entryDateStr = entry.date.split('T')[0]; // Wyciągnij tylko datę z ISO string
+        return entryDateStr === dayStr;
       });
       
-      let total = 0;
-      dayAppointments.forEach((appointment) => {
-        
-        const doctorId = appointment.primaryPhysician?.$id || appointment.primaryPhysician;
-        const appointmentTime = new Date(appointment.schedule);
-        const dayOfWeek = appointmentTime.getDay();
-        const appointmentHour = format(appointmentTime, "HH:mm");
-        
-        // Znajdź slot po dacie i godzinie (ignorujemy doctorId bo jest null)
-        const slot = scheduleSlots.find(slot => {
-          const slotDate = slot.specificDate ? new Date(slot.specificDate).toISOString().split('T')[0] : null;
-          const slotDayOfWeek = slot.dayOfWeek;
-          
-          // Sprawdź czy slot pasuje do daty wizyty
-          const dateMatches = slotDate === dayStr || 
-            (slotDayOfWeek === dayOfWeek && !slotDate);
-          
-          // Sprawdź czy slot pasuje do godziny wizyty
-          const timeMatches = slot.startTime <= appointmentHour && slot.endTime > appointmentHour;
-          
-          return dateMatches && timeMatches;
-        });
-        
-        let price = 0;
-        if (slot) {
-          // Spróbuj wyciągnąć cenę z roomName (JSON)
-          if (slot.roomName) {
-            try {
-              const roomData = JSON.parse(slot.roomName);
-              if (roomData.consultationFee) {
-                price = parseFloat(roomData.consultationFee);
-              }
-            } catch (e) {
-              // Ignoruj błąd parsowania
-            }
-          }
-          
-          // Fallback na inne pola z ceną
-          if (price === 0 && slot.price) {
-            price = parseFloat(slot.price);
-          }
-        }
-        
-        // Sprawdź cenę w wizycie (priorytet)
-        if (appointment.amount && parseFloat(appointment.amount) > 0) {
-          price = parseFloat(appointment.amount);
-        } else if (appointment.price && parseFloat(appointment.price) > 0) {
-          price = parseFloat(appointment.price);
-        } else if (appointment.revenue && parseFloat(appointment.revenue) > 0) {
-          price = parseFloat(appointment.revenue);
-        } else if (price === 0) {
-          // Fallback na domyślną cenę dla slotów bez ceny
-          if (slot && slot.type === 'commercial') {
-            price = 150; // Domyślna cena dla wizyt komercyjnych
-          } else if (slot && slot.type === 'nfz') {
-            price = 0; // NFZ jest darmowe
-          }
-        }
-        
-        total += price;
-      });
+      const total = dayEntries.reduce((sum, entry) => sum + entry.amount, 0);
+      
+      if (total > 0) {
+        console.log(`calculateRevenueDataFromEntries: ${dayStr} - ${dayEntries.length} wpisów, suma: ${total}`);
+      }
 
       return {
         date: dayStr,
@@ -139,6 +92,7 @@ export function RevenueAnalysis({ appointments, schedules = [], scheduleSlots = 
       };
     });
   };
+
 
   // Funkcje do obliczania różnych typów danych
   const calculateAllVisitsData = (appointments: any[], startDate: Date, endDate: Date) => {
@@ -209,10 +163,6 @@ export function RevenueAnalysis({ appointments, schedules = [], scheduleSlots = 
 
   // Oblicz dane na podstawie wybranego typu
   const chartData = useMemo(() => {
-    if (!Array.isArray(appointments)) {
-      return [];
-    }
-
     let startDate: Date;
     let endDate: Date;
 
@@ -229,24 +179,34 @@ export function RevenueAnalysis({ appointments, schedules = [], scheduleSlots = 
       startDate.setDate(startDate.getDate() - 7);
     }
 
-
     switch (dataType) {
       case "revenue":
-        const filteredAppointments = appointments.filter(appointment => {
-          const status = appointment.status?.[0] || appointment.status;
-          return status === "accepted" || status === "scheduled" || status === "completed";
-        });
-        return calculateRevenueData(filteredAppointments, schedules, scheduleSlots, startDate, endDate);
+        // Użyj wszystkich danych z tabeli revenue bez filtrowania dat
+        if (revenueEntries.length === 0) return [];
+        
+        // Znajdź zakres dat z danych
+        const allDates = revenueEntries.map(entry => new Date(entry.date));
+        const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+        
+        // Użyj zakresu dat z danych - obejmij wszystkie dane
+        const actualStartDate = minDate;
+        const actualEndDate = maxDate;
+        
+        return calculateRevenueDataFromEntries(revenueEntries, actualStartDate, actualEndDate);
       case "allVisits":
+        if (!Array.isArray(appointments)) return [];
         return calculateAllVisitsData(appointments, startDate, endDate);
       case "cancelledVisits":
+        if (!Array.isArray(appointments)) return [];
         return calculateCancelledVisitsData(appointments, startDate, endDate);
       case "newPatients":
+        if (!Array.isArray(appointments)) return [];
         return calculateNewPatientsData(appointments, startDate, endDate);
       default:
         return [];
     }
-  }, [appointments, schedules, scheduleSlots, dataType, timePeriod, selectedYear]);
+  }, [appointments, schedules, scheduleSlots, dataType, timePeriod, selectedYear, revenueEntries]);
 
   // Oblicz statystyki
   const stats = useMemo(() => {
@@ -260,23 +220,24 @@ export function RevenueAnalysis({ appointments, schedules = [], scheduleSlots = 
       const prevEndDate = new Date();
       prevEndDate.setDate(prevEndDate.getDate() - 30);
       
-      switch (dataType) {
-        case "revenue":
-          const prevFilteredAppointments = appointments.filter(appointment => {
-            const status = appointment.status?.[0] || appointment.status;
-            return status === "accepted" || status === "scheduled" || status === "completed";
-          });
-          previousPeriodValue = calculateRevenueData(prevFilteredAppointments, schedules, scheduleSlots, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
-          break;
-        case "allVisits":
-          previousPeriodValue = calculateAllVisitsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
-          break;
-        case "cancelledVisits":
-          previousPeriodValue = calculateCancelledVisitsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
-          break;
-        case "newPatients":
-          previousPeriodValue = calculateNewPatientsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
-          break;
+      if (dataType === "revenue") {
+        const prevRevenueEntries = revenueEntries.filter(entry => {
+          const entryDate = new Date(entry.date);
+          return entryDate >= prevStartDate && entryDate <= prevEndDate;
+        });
+        previousPeriodValue = calculateRevenueDataFromEntries(prevRevenueEntries, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
+      } else if (Array.isArray(appointments)) {
+        switch (dataType) {
+          case "allVisits":
+            previousPeriodValue = calculateAllVisitsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
+            break;
+          case "cancelledVisits":
+            previousPeriodValue = calculateCancelledVisitsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
+            break;
+          case "newPatients":
+            previousPeriodValue = calculateNewPatientsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
+            break;
+        }
       }
     } else if (timePeriod === "last7days") {
       const prevStartDate = new Date();
@@ -284,53 +245,55 @@ export function RevenueAnalysis({ appointments, schedules = [], scheduleSlots = 
       const prevEndDate = new Date();
       prevEndDate.setDate(prevEndDate.getDate() - 7);
       
-      switch (dataType) {
-        case "revenue":
-          const prevFilteredAppointments = appointments.filter(appointment => {
-            const status = appointment.status?.[0] || appointment.status;
-            return status === "accepted" || status === "scheduled" || status === "completed";
-          });
-          previousPeriodValue = calculateRevenueData(prevFilteredAppointments, schedules, scheduleSlots, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
-          break;
-        case "allVisits":
-          previousPeriodValue = calculateAllVisitsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
-          break;
-        case "cancelledVisits":
-          previousPeriodValue = calculateCancelledVisitsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
-          break;
-        case "newPatients":
-          previousPeriodValue = calculateNewPatientsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
-          break;
+      if (dataType === "revenue") {
+        const prevRevenueEntries = revenueEntries.filter(entry => {
+          const entryDate = new Date(entry.date);
+          return entryDate >= prevStartDate && entryDate <= prevEndDate;
+        });
+        previousPeriodValue = calculateRevenueDataFromEntries(prevRevenueEntries, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
+      } else if (Array.isArray(appointments)) {
+        switch (dataType) {
+          case "allVisits":
+            previousPeriodValue = calculateAllVisitsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
+            break;
+          case "cancelledVisits":
+            previousPeriodValue = calculateCancelledVisitsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
+            break;
+          case "newPatients":
+            previousPeriodValue = calculateNewPatientsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
+            break;
+        }
       }
     } else { // year
       const prevYear = selectedYear - 1;
       const prevStartDate = startOfYear(new Date(prevYear, 0, 1));
       const prevEndDate = endOfYear(new Date(prevYear, 11, 31));
       
-      switch (dataType) {
-        case "revenue":
-          const prevFilteredAppointments = appointments.filter(appointment => {
-            const status = appointment.status?.[0] || appointment.status;
-            return status === "accepted" || status === "scheduled" || status === "completed";
-          });
-          previousPeriodValue = calculateRevenueData(prevFilteredAppointments, schedules, scheduleSlots, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
-          break;
-        case "allVisits":
-          previousPeriodValue = calculateAllVisitsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
-          break;
-        case "cancelledVisits":
-          previousPeriodValue = calculateCancelledVisitsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
-          break;
-        case "newPatients":
-          previousPeriodValue = calculateNewPatientsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
-          break;
+      if (dataType === "revenue") {
+        const prevRevenueEntries = revenueEntries.filter(entry => {
+          const entryDate = new Date(entry.date);
+          return entryDate >= prevStartDate && entryDate <= prevEndDate;
+        });
+        previousPeriodValue = calculateRevenueDataFromEntries(prevRevenueEntries, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
+      } else if (Array.isArray(appointments)) {
+        switch (dataType) {
+          case "allVisits":
+            previousPeriodValue = calculateAllVisitsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
+            break;
+          case "cancelledVisits":
+            previousPeriodValue = calculateCancelledVisitsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
+            break;
+          case "newPatients":
+            previousPeriodValue = calculateNewPatientsData(appointments, prevStartDate, prevEndDate).reduce((sum, data) => sum + data.value, 0);
+            break;
+        }
       }
     }
 
     const growthPercentage = previousPeriodValue === 0 ? (totalValue > 0 ? 100 : 0) : ((totalValue - previousPeriodValue) / previousPeriodValue) * 100;
     
     return { totalValue, previousPeriodValue, growthPercentage };
-  }, [chartData, dataType, timePeriod, selectedYear, appointments, schedules, scheduleSlots]);
+  }, [chartData, dataType, timePeriod, selectedYear, appointments, schedules, scheduleSlots, revenueEntries]);
 
   // Funkcje nawigacji
   const goToPrevious = () => {
@@ -563,149 +526,3 @@ function calculateYearlyRevenueFromEntries(revenueEntries: RevenueEntry[], year:
   });
 }
 
-// Fallback - funkcje obliczające dochody z wizyt
-function calculateMonthlyRevenueFromAppointments(appointments: any[], schedules: any[], scheduleSlots: any[], currentDate: Date): RevenueData[] {
-  const startDate = startOfMonth(currentDate);
-  const endDate = endOfMonth(currentDate);
-  const days = eachDayOfInterval({ start: startDate, end: endDate });
-
-  // Debug: pokaż dostępne harmonogramy i sloty
-  console.log("Available schedules (full objects):", schedules);
-  console.log("Available schedule slots (first 3):", scheduleSlots.slice(0, 3));
-  
-  // Sprawdź jakie pola mają harmonogramy
-  if (schedules.length > 0) {
-    console.log("Schedule fields:", Object.keys(schedules[0]));
-    console.log("First schedule:", schedules[0]);
-  }
-
-  return days.map(day => {
-    const dayStr = format(day, "yyyy-MM-dd");
-    const dayAppointments = appointments.filter(appointment => {
-      const appointmentDate = new Date(appointment.schedule);
-      const appointmentDateStr = format(appointmentDate, "yyyy-MM-dd");
-      return appointmentDateStr === dayStr;
-    });
-    
-    let total = 0;
-    dayAppointments.forEach(appointment => {
-      console.log("Processing appointment:", appointment);
-      const doctorId = appointment.primaryPhysician?.$id || appointment.primaryPhysician;
-      const appointmentTime = new Date(appointment.schedule);
-      const dayOfWeek = appointmentTime.getDay();
-      const appointmentHour = format(appointmentTime, "HH:mm");
-      
-      // Znajdź slot bezpośrednio po dacie i godzinie (bez harmonogramu)
-      const slot = scheduleSlots.find(slot => {
-        const slotDate = slot.specificDate ? new Date(slot.specificDate).toISOString().split('T')[0] : null;
-        const slotDayOfWeek = slot.dayOfWeek;
-        
-        // Sprawdź czy slot pasuje do daty wizyty
-        const dateMatches = slotDate === dayStr || 
-          (slotDayOfWeek === dayOfWeek && !slotDate);
-        
-        // Sprawdź czy slot pasuje do godziny wizyty
-        const timeMatches = slot.startTime <= appointmentHour && slot.endTime > appointmentHour;
-        
-        return dateMatches && timeMatches;
-      });
-      
-      let price = 0;
-      if (slot) {
-        console.log(`✅ Found slot for appointment:`, slot);
-        
-        // Spróbuj wyciągnąć cenę z roomName (JSON)
-        if (slot.roomName) {
-          try {
-            const roomData = JSON.parse(slot.roomName);
-            if (roomData.consultationFee) {
-              price = parseFloat(roomData.consultationFee);
-              console.log(`✅ Price from roomName: ${price}`);
-            }
-          } catch (e) {
-            console.log("Could not parse roomName JSON:", slot.roomName);
-          }
-        }
-        
-        // Fallback na inne pola z ceną
-        if (price === 0 && slot.price) {
-          price = parseFloat(slot.price);
-          console.log(`✅ Price from slot.price: ${price}`);
-        }
-      } else {
-        console.log(`❌ No slot found for appointment at ${dayStr} ${appointmentHour}`);
-      }
-      
-      if (price === 0) {
-        price = parseFloat(appointment.amount || appointment.price || 0);
-      }
-      
-      total += price;
-    });
-
-    return {
-      date: dayStr,
-      value: total,
-      displayDate: format(day, "dd"),
-    };
-  });
-}
-
-function calculateYearlyRevenueFromAppointments(appointments: any[], schedules: any[], scheduleSlots: any[], year: number): RevenueData[] {
-  const startDate = startOfYear(new Date(year, 0, 1));
-  const endDate = endOfYear(new Date(year, 11, 31));
-  const months = eachMonthOfInterval({ start: startDate, end: endDate });
-
-  return months.map(month => {
-    const monthStr = format(month, "yyyy-MM");
-    const monthAppointments = appointments.filter(appointment => {
-      const appointmentDate = new Date(appointment.schedule);
-      return format(appointmentDate, "yyyy-MM") === monthStr;
-    });
-    
-    let total = 0;
-    monthAppointments.forEach(appointment => {
-      const doctorId = appointment.primaryPhysician?.$id || appointment.primaryPhysician;
-      const appointmentTime = new Date(appointment.schedule);
-      const dayOfWeek = appointmentTime.getDay();
-      
-      const doctorSchedule = schedules.find(schedule => {
-        // Sprawdź czy doctorId to ID czy nazwa
-        const scheduleDoctorId = schedule.doctor?.$id || schedule.doctor;
-        const scheduleDoctorName = schedule.doctor?.name || schedule.doctorName;
-        
-        console.log(`  Looking for doctor: ${doctorId}, Schedule doctor ID: ${scheduleDoctorId}, Schedule doctor name: ${scheduleDoctorName}`);
-        
-        return scheduleDoctorId === doctorId || scheduleDoctorName === doctorId;
-      });
-      
-      let price = 0;
-      if (doctorSchedule) {
-        const slot = scheduleSlots.find(slot => 
-          slot.schedule?.$id === doctorSchedule.$id && 
-          slot.dayOfWeek === dayOfWeek &&
-          slot.startTime <= format(appointmentTime, "HH:mm") &&
-          slot.endTime > format(appointmentTime, "HH:mm")
-        );
-        
-        if (slot && slot.price) {
-          price = parseFloat(slot.price);
-        } else if (doctorSchedule.defaultPrice) {
-          price = parseFloat(doctorSchedule.defaultPrice);
-        }
-      }
-      
-      if (price === 0) {
-        price = parseFloat(appointment.amount || appointment.price || 0);
-      }
-      
-      total += price;
-    });
-
-    return {
-      date: monthStr,
-      value: total,
-      displayDate: format(month, "MMM", { locale: pl }),
-    };
-  });
-}

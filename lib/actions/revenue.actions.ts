@@ -1,7 +1,7 @@
 "use server";
 
 import { databases, DATABASE_ID } from "@/lib/appwrite.config";
-import { ID } from "node-appwrite";
+import { ID, Query } from "node-appwrite";
 
 const REVENUE_COLLECTION_ID = "revenue"; // ID kolekcji revenue
 
@@ -43,43 +43,37 @@ async function ensureRevenueCollection() {
         console.error("Błąd dodawania kolumny appointmentId:", addError);
       }
     }
+    
+    // Sprawdź uprawnienia kolekcji
+    try {
+      await databases.updateCollection(
+        DATABASE_ID!,
+        REVENUE_COLLECTION_ID,
+        "Revenue",
+        ["read(\"any\")", "create(\"any\")", "update(\"any\")", "delete(\"any\")"]
+      );
+      console.log("Uprawnienia kolekcji revenue zaktualizowane");
+    } catch (permError) {
+      console.log("Nie można zaktualizować uprawnień kolekcji revenue:", permError instanceof Error ? permError.message : permError);
+    }
   } catch (error) {
     // Jeśli kolekcja nie istnieje, utwórz ją
     console.log("Tworzenie kolekcji revenue...");
     try {
-      await databases.createCollection(DATABASE_ID!, REVENUE_COLLECTION_ID, "Revenue", [
-        {
-          key: "amount",
-          type: "double",
-          required: true,
-          default: 0
-        },
-        {
-          key: "date",
-          type: "string",
-          required: true,
-          size: 50
-        },
-        {
-          key: "type",
-          type: "string",
-          required: true,
-          size: 100
-        },
-        {
-          key: "doctorId",
-          type: "string",
-          required: true,
-          size: 100
-        },
-        {
-          key: "appointmentId",
-          type: "string",
-          required: false,
-          size: 100
-        }
-      ]);
+      await databases.createCollection(
+        DATABASE_ID!, 
+        REVENUE_COLLECTION_ID, 
+        "Revenue", 
+        ["read(\"any\")", "create(\"any\")", "update(\"any\")", "delete(\"any\")"]
+      );
       console.log("Kolekcja revenue utworzona!");
+      
+      // Dodaj atrybuty do kolekcji
+      await databases.createFloatAttribute(DATABASE_ID!, REVENUE_COLLECTION_ID, "amount", true, 0, 999999, 0);
+      await databases.createStringAttribute(DATABASE_ID!, REVENUE_COLLECTION_ID, "date", 50, true);
+      await databases.createStringAttribute(DATABASE_ID!, REVENUE_COLLECTION_ID, "type", 100, true);
+      await databases.createStringAttribute(DATABASE_ID!, REVENUE_COLLECTION_ID, "doctorId", 100, true);
+      await databases.createStringAttribute(DATABASE_ID!, REVENUE_COLLECTION_ID, "appointmentId", 100, false);
     } catch (createError) {
       console.error("Błąd tworzenia kolekcji revenue:", createError);
       // Nie rzucaj błędu, po prostu loguj
@@ -95,26 +89,35 @@ export async function getRevenueEntries(filters?: {
   type?: string;
 }) {
   try {
-    // Upewnij się, że kolekcja istnieje
+    console.log("Pobieranie wpisów dochodów z filtrami:", filters);
+    
+    // Upewnij się, że kolekcja revenue istnieje
     await ensureRevenueCollection();
     
-    let queries: string[] = [];
+    let queries: any[] = [];
     
-    if (filters?.startDate) {
-      queries.push(`date >= "${filters.startDate}"`);
-    }
-    
-    if (filters?.endDate) {
-      queries.push(`date <= "${filters.endDate}"`);
+    // Jeśli nie ma filtrów dat, pobierz wszystkie wpisy
+    if (!filters?.startDate && !filters?.endDate) {
+      console.log("Brak filtrów dat - pobieranie wszystkich wpisów dochodów");
+    } else {
+      if (filters?.startDate) {
+        queries.push(Query.greaterThanEqual("date", filters.startDate));
+      }
+      
+      if (filters?.endDate) {
+        queries.push(Query.lessThanEqual("date", filters.endDate));
+      }
     }
     
     if (filters?.doctorId) {
-      queries.push(`doctorId = "${filters.doctorId}"`);
+      queries.push(Query.equal("doctorId", [filters.doctorId]));
     }
     
     if (filters?.type) {
-      queries.push(`type = "${filters.type}"`);
+      queries.push(Query.equal("type", [filters.type]));
     }
+
+    console.log("Wykonywanie zapytania do kolekcji Revenue z queries:", queries);
 
     const response = await databases.listDocuments(
       DATABASE_ID!,
@@ -122,7 +125,10 @@ export async function getRevenueEntries(filters?: {
       queries.length > 0 ? queries : undefined
     );
 
-    return response.documents as RevenueEntry[];
+    console.log("Odpowiedź z kolekcji Revenue:", response.documents);
+    console.log("Liczba dokumentów:", response.documents.length);
+
+    return response.documents as unknown as RevenueEntry[];
   } catch (error) {
     console.error("Błąd pobierania wpisów dochodów:", error);
     // Jeśli nie można pobrać z bazy revenue, zwróć pustą tablicę
@@ -133,8 +139,7 @@ export async function getRevenueEntries(filters?: {
 // Utwórz wpis dochodów
 export async function createRevenueEntry(data: Omit<RevenueEntry, "$id" | "$createdAt" | "$updatedAt">) {
   try {
-    // Upewnij się, że kolekcja istnieje
-    await ensureRevenueCollection();
+    console.log("Tworzenie wpisu dochodów:", data);
     
     const response = await databases.createDocument(
       DATABASE_ID!,
@@ -149,7 +154,8 @@ export async function createRevenueEntry(data: Omit<RevenueEntry, "$id" | "$crea
       }
     );
 
-    return response as RevenueEntry;
+    console.log("Wpis dochodów utworzony:", response);
+    return response as unknown as RevenueEntry;
   } catch (error) {
     console.error("Błąd tworzenia wpisu dochodów:", error);
     throw error;
@@ -166,7 +172,7 @@ export async function updateRevenueEntry(id: string, data: Partial<RevenueEntry>
       data
     );
 
-    return response as RevenueEntry;
+    return response as unknown as RevenueEntry;
   } catch (error) {
     console.error("Błąd aktualizacji wpisu dochodów:", error);
     throw error;
@@ -211,39 +217,100 @@ export async function getYearlyRevenue(year: number) {
   });
 }
 
+// Pobierz sumę dochodów dla określonego okresu
+export async function getTotalRevenue(filters?: {
+  startDate?: string;
+  endDate?: string;
+  doctorId?: string;
+  type?: string;
+}) {
+  try {
+    const entries = await getRevenueEntries(filters);
+    const total = entries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+    console.log(`Suma dochodów: ${total} zł z ${entries.length} wpisów`);
+    return total;
+  } catch (error) {
+    console.error("Błąd obliczania sumy dochodów:", error);
+    return 0;
+  }
+}
+
+// Pobierz dochody z ostatnich 30 dni
+export async function getLast30DaysRevenue() {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - 30);
+  
+  return getRevenueEntries({
+    startDate: startDate.toISOString().split('T')[0],
+    endDate: endDate.toISOString().split('T')[0]
+  });
+}
+
+// Pobierz dochody z ostatnich 7 dni
+export async function getLast7DaysRevenue() {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - 7);
+  
+  return getRevenueEntries({
+    startDate: startDate.toISOString().split('T')[0],
+    endDate: endDate.toISOString().split('T')[0]
+  });
+}
+
 // Utwórz wpis dochodów dla wizyty
 export async function createRevenueForAppointment(appointment: any, schedules: any[], scheduleSlots: any[]) {
   try {
     // Znajdź cenę z grafiku specjalisty
-    const doctorId = appointment.primaryPhysician?.$id || appointment.primaryPhysician;
+    const doctorName = appointment.primaryPhysician;
     const appointmentTime = new Date(appointment.schedule);
-    const dayOfWeek = appointmentTime.getDay();
+    const dayOfWeek = appointmentTime.getDay() === 0 ? 7 : appointmentTime.getDay(); // Sunday = 7
     
-    // Znajdź harmonogram specjalisty
+    // Znajdź harmonogram specjalisty po nazwie lekarza
     const doctorSchedule = schedules.find(schedule => 
-      schedule.doctor?.$id === doctorId || schedule.doctor === doctorId
+      schedule.doctorName === doctorName || schedule.doctor?.name === doctorName
     );
     
     let amount = 0;
+    let doctorId = "";
+    
     if (doctorSchedule) {
+      doctorId = doctorSchedule.doctorId || doctorSchedule.doctor?.$id || "";
+      
       // Znajdź slot dla tego dnia tygodnia i godziny
       const slot = scheduleSlots.find(slot => 
-        slot.schedule?.$id === doctorSchedule.$id && 
+        slot.scheduleId === doctorSchedule.$id && 
         slot.dayOfWeek === dayOfWeek &&
         slot.startTime <= appointmentTime.toTimeString().slice(0, 5) &&
         slot.endTime > appointmentTime.toTimeString().slice(0, 5)
       );
       
-      if (slot && slot.price) {
-        amount = parseFloat(slot.price);
+      if (slot) {
+        // Sprawdź czy slot ma consultationFee w roomName (JSON)
+        if (slot.roomName) {
+          try {
+            const roomData = JSON.parse(slot.roomName);
+            if (roomData.consultationFee !== undefined) {
+              amount = parseFloat(roomData.consultationFee);
+            }
+          } catch (e) {
+            // Jeśli nie można sparsować JSON, użyj domyślnej ceny
+            amount = slot.type === 'nfz' ? 0 : 150;
+          }
+        } else if (slot.type === 'nfz') {
+          amount = 0;
+        } else {
+          amount = 150; // Domyślna cena dla wizyt komercyjnych
+        }
       } else if (doctorSchedule.defaultPrice) {
         amount = parseFloat(doctorSchedule.defaultPrice);
       }
     }
     
     // Fallback na cenę z wizyty jeśli nie ma w grafiku
-    if (amount === 0) {
-      amount = parseFloat(appointment.amount || appointment.price || 0);
+    if (amount === 0 && appointment.amount) {
+      amount = parseFloat(appointment.amount);
     }
     
     // Utwórz wpis dochodów tylko jeśli kwota > 0

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -8,6 +9,8 @@ import {
   Calendar
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { getLast30DaysRevenue, getTotalRevenue, getRevenueEntries, RevenueEntry } from "@/lib/actions/revenue.actions";
+import { format, eachDayOfInterval, subDays } from "date-fns";
 
 interface RevenueChartProps {
   revenueData: {
@@ -23,24 +26,97 @@ interface RevenueChartProps {
 }
 
 export const RevenueChart = ({ revenueData, chartData }: RevenueChartProps) => {
-  // Przykładowe dane wykresu jeśli nie są przekazane
-  const defaultChartData = [
-    { date: "09", amount: 1200 },
-    { date: "11", amount: 1800 },
-    { date: "13", amount: 2200 },
-    { date: "15", amount: 1900 },
-    { date: "17", amount: 2500 },
-    { date: "19", amount: 2800 },
-    { date: "21", amount: 3200 },
-    { date: "23", amount: 2900 },
-    { date: "25", amount: 3500 },
-    { date: "27", amount: 3800 },
-    { date: "29", amount: 4200 },
-    { date: "02", amount: 4500 },
-    { date: "04", amount: 4800 },
-  ];
+  const [revenueEntries, setRevenueEntries] = useState<RevenueEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actualRevenueData, setActualRevenueData] = useState({
+    totalRevenue: 0,
+    previousRevenue: 0,
+    revenueGrowth: 0
+  });
 
-  const data = chartData || defaultChartData;
+  // Pobierz dane dochodów z ostatnich 30 dni
+  useEffect(() => {
+    const fetchRevenueData = async () => {
+      try {
+        setLoading(true);
+        const entries = await getRevenueEntries({});
+        setRevenueEntries(entries);
+        
+        // Oblicz rzeczywiste dane dochodów - użyj wszystkich danych
+        const totalRevenue = entries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+        
+        // Oblicz wzrost w porównaniu do poprzedniego miesiąca
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+        
+        // Dochody z bieżącego miesiąca
+        const currentMonthEntries = entries.filter(entry => {
+          const entryDate = new Date(entry.date);
+          return entryDate.getMonth() === currentMonth && entryDate.getFullYear() === currentYear;
+        });
+        const currentMonthRevenue = currentMonthEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+        
+        // Dochody z poprzedniego miesiąca
+        const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+        
+        const previousMonthEntries = entries.filter(entry => {
+          const entryDate = new Date(entry.date);
+          return entryDate.getMonth() === previousMonth && entryDate.getFullYear() === previousYear;
+        });
+        const previousMonthRevenue = previousMonthEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+        
+        const revenueGrowth = previousMonthRevenue === 0 ? (currentMonthRevenue > 0 ? 100 : 0) : 
+          ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100;
+        
+        setActualRevenueData({
+          totalRevenue,
+          previousRevenue: previousMonthRevenue,
+          revenueGrowth
+        });
+        
+        console.log(`Pobrano ${entries.length} wpisów dochodów, suma: ${totalRevenue} zł`);
+      } catch (error) {
+        console.error("Błąd pobierania danych dochodów:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRevenueData();
+  }, []);
+
+  // Przygotuj dane wykresu z rzeczywistych danych
+  const prepareChartData = () => {
+    if (revenueEntries.length === 0) {
+      return chartData || [];
+    }
+
+    // Użyj wszystkich danych zamiast tylko ostatnich 30 dni
+    const allDates = revenueEntries.map(entry => new Date(entry.date));
+    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+    
+    // Jeśli wszystkie daty są w przyszłości, użyj ostatnich 30 dni
+    const now = new Date();
+    const endDate = maxDate > now ? now : maxDate;
+    const startDate = subDays(endDate, 30);
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    
+    return days.map(day => {
+      const dayStr = format(day, "yyyy-MM-dd");
+      const dayEntries = revenueEntries.filter(entry => entry.date === dayStr);
+      const total = dayEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+      
+      return {
+        date: format(day, "dd"),
+        amount: total
+      };
+    });
+  };
+
+  const data = prepareChartData();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('pl-PL', {
@@ -54,7 +130,7 @@ export const RevenueChart = ({ revenueData, chartData }: RevenueChartProps) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="text-sm text-gray-600 mb-1">Data: {label} Marzec</p>
+          <p className="text-sm text-gray-600 mb-1">Data: {label} {format(new Date(), 'MMMM', { locale: { code: 'pl' } })}</p>
           <p className="text-sm font-semibold text-gray-900">
             {formatCurrency(payload[0].value)}
           </p>
@@ -63,6 +139,9 @@ export const RevenueChart = ({ revenueData, chartData }: RevenueChartProps) => {
     }
     return null;
   };
+
+  // Użyj rzeczywistych danych jeśli są dostępne, w przeciwnym razie fallback na przekazane dane
+  const displayData = actualRevenueData.totalRevenue > 0 ? actualRevenueData : revenueData;
 
   return (
     <Card className="w-full">
@@ -76,7 +155,7 @@ export const RevenueChart = ({ revenueData, chartData }: RevenueChartProps) => {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="text-sm">
-              Miesiąc
+              Ostatnie 30 dni
               <ChevronDown className="h-4 w-4 ml-1" />
             </Button>
           </div>
@@ -85,12 +164,22 @@ export const RevenueChart = ({ revenueData, chartData }: RevenueChartProps) => {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold text-gray-900">
-              {formatCurrency(revenueData.totalRevenue)}
+              {loading ? (
+                <div className="w-32 h-8 bg-gray-200 rounded animate-pulse"></div>
+              ) : (
+                formatCurrency(displayData.totalRevenue)
+              )}
             </h2>
-            <div className="flex items-center gap-2 text-green-600 mt-1">
-              <TrendingUp className="h-4 w-4" />
+            <div className={`flex items-center gap-2 mt-1 ${
+              displayData.revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+            }`}>
+              <TrendingUp className={`h-4 w-4 ${displayData.revenueGrowth < 0 ? 'rotate-180' : ''}`} />
               <span className="text-sm font-medium">
-                {revenueData.revenueGrowth}% vs ostatni miesiąc
+                {loading ? (
+                  <div className="w-24 h-4 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  `${displayData.revenueGrowth > 0 ? '+' : ''}${displayData.revenueGrowth.toFixed(1)}% vs ostatnie 30 dni`
+                )}
               </span>
             </div>
           </div>
@@ -99,34 +188,52 @@ export const RevenueChart = ({ revenueData, chartData }: RevenueChartProps) => {
       
       <CardContent>
         <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis 
-                dataKey="date" 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12, fill: '#666' }}
-                tickMargin={10}
-              />
-              <YAxis 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12, fill: '#666' }}
-                tickFormatter={(value) => `${value / 1000}k`}
-                domain={[0, 'dataMax + 500']}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Line 
-                type="monotone" 
-                dataKey="amount" 
-                stroke="#3B82F6" 
-                strokeWidth={3}
-                dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, stroke: '#3B82F6', strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="h-full w-full bg-gray-50 rounded-xl flex flex-col items-center justify-center p-8">
+              <div className="text-gray-400 text-center">
+                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-lg font-medium mb-2">Ładowanie danych...</p>
+                <p className="text-sm">Pobieranie dochodów z bazy</p>
+              </div>
+            </div>
+          ) : data.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="date" 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: '#666' }}
+                  tickMargin={10}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: '#666' }}
+                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                  domain={[0, 'dataMax + 500']}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Line 
+                  type="monotone" 
+                  dataKey="amount" 
+                  stroke="#3B82F6" 
+                  strokeWidth={3}
+                  dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, stroke: '#3B82F6', strokeWidth: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full w-full bg-gray-50 rounded-xl flex flex-col items-center justify-center p-8">
+              <div className="text-gray-400 text-center">
+                <Calendar className="h-12 w-12 mx-auto mb-4" />
+                <p className="text-lg font-medium mb-2">Brak danych</p>
+                <p className="text-sm">Nie ma wpisów dochodów w ostatnich 30 dniach</p>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Oznaczenie "Dzisiaj" na osi X */}

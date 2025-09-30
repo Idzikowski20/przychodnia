@@ -12,6 +12,7 @@ declare interface CreateUserParams {
   name: string;
   email: string;
   phone: string;
+  password?: string;
 }
 declare interface User extends CreateUserParams {
   $id: string;
@@ -19,6 +20,8 @@ declare interface User extends CreateUserParams {
 
 declare interface RegisterUserParams extends CreateUserParams {
   userId: string;
+  numberVerified: boolean; // Czy numer telefonu został zweryfikowany
+  password?: string; // Hasło użytkownika (opcjonalne)
   birthDate: Date;
   gender: Gender;
   address: string;
@@ -47,6 +50,7 @@ declare type CreateAppointmentParams = {
   status: Status;
   note: string | undefined;
   isCompleted: boolean;
+  amount?: number; // Kwota wizyty
   roomName?: string;
   roomColor?: string;
 };

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ID, Query } from "node-appwrite";
 
 import { Appointment } from "@/types/appwrite.types";
-import { createRevenueForAppointment } from "./revenue.actions";
+import { createRevenueForAppointment, createRevenueEntry } from "./revenue.actions";
 
 import {
   APPOINTMENT_COLLECTION_ID,
@@ -18,11 +18,45 @@ import { getDoctors } from "./doctor.actions";
 import { getRooms } from "./room.actions";
 import { getPatient } from "./patient.actions";
 
+// Sprawdź czy kolekcja appointment ma pole amount
+async function ensureAppointmentCollection() {
+  try {
+    // Sprawdź czy ma kolumnę amount
+    try {
+      await databases.getAttribute(DATABASE_ID!, APPOINTMENT_COLLECTION_ID!, "amount");
+      console.log("Kolumna amount już istnieje w kolekcji appointment");
+    } catch (attrError) {
+      // Jeśli kolumna nie istnieje, dodaj ją
+      console.log("Dodawanie kolumny amount do kolekcji appointment...");
+      try {
+        await databases.createFloatAttribute(
+          DATABASE_ID!, 
+          APPOINTMENT_COLLECTION_ID!, 
+          "amount", 
+          false, // nie wymagane
+          0, // minimum
+          999999, // maximum
+          undefined, // brak wartości domyślnej
+          false // nie jest tablicą
+        );
+        console.log("Kolumna amount dodana do kolekcji appointment!");
+      } catch (addError) {
+        console.error("Błąd dodawania kolumny amount:", addError);
+      }
+    }
+  } catch (error) {
+    console.error("Błąd sprawdzania kolekcji appointment:", error);
+  }
+}
+
 //  CREATE APPOINTMENT
 export const createAppointment = async (
   appointment: CreateAppointmentParams
 ) => {
   try {
+    // Upewnij się, że kolekcja ma pole amount
+    await ensureAppointmentCollection();
+    
     // Znajdź gabinet przypisany do specjalisty, avatar lekarza i dane pacjenta
     const [rooms, doctors, patient] = await Promise.all([
       getRooms(),
@@ -49,6 +83,22 @@ export const createAppointment = async (
       ID.unique(),
       appointmentData
     );
+
+    // Utwórz wpis dochodów dla wizyty jeśli ma kwotę
+    if (appointment.amount && appointment.amount > 0) {
+      try {
+        await createRevenueEntry({
+          amount: appointment.amount,
+          date: appointment.schedule.toISOString().split('T')[0],
+          type: "appointment",
+          doctorId: doctor?.$id || "",
+          appointmentId: newAppointment.$id
+        });
+      } catch (error) {
+        console.error("Błąd tworzenia wpisu dochodów:", error);
+        // Nie przerywamy procesu jeśli nie uda się utworzyć wpisu dochodów
+      }
+    }
 
     // Wysyłanie SMS-a z potwierdzeniem utworzenia wizyty
     const smsMessage = `Twoja prośba o wizytę została pomyślnie złożona na ${formatDateTime(appointment.schedule).dateTime} z dr. ${appointment.primaryPhysician}. Skontaktujemy się z Tobą wkrótce w celu potwierdzenia, Pozdrowienia z CarePulse. `;
@@ -658,6 +708,22 @@ export const getDashboardStats = async () => {
       return appointmentDate >= todayStart && appointmentDate <= todayEnd;
     });
 
+    // Pobierz przychody z ostatnich 30 dni
+    const { getRevenueEntries } = await import('./revenue.actions');
+    const revenueEntries = await getRevenueEntries({});
+    const monthlyRevenue = revenueEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+    
+    console.log("getDashboardStats: Pobrane wpisy dochodów:", revenueEntries);
+    console.log("getDashboardStats: Suma przychodów:", monthlyRevenue);
+
+    // Pobierz wszystkich pacjentów
+    const { getPatients } = await import('./patient.actions');
+    const allPatients = await getPatients();
+    const activePatients = allPatients ? allPatients.length : 0;
+    
+    console.log("getDashboardStats: Pobrani pacjenci:", allPatients);
+    console.log("getDashboardStats: Liczba aktywnych pacjentów:", activePatients);
+
     // Policz statystyki
     const stats = {
       todayAppointments: todayAppointments.length,
@@ -671,6 +737,8 @@ export const getDashboardStats = async () => {
       completedAppointments30Days: appointments.documents.filter((apt: any) => 
         Array.isArray(apt.status) ? apt.status.includes('completed') : apt.status === 'completed'
       ).length,
+      monthlyRevenue: monthlyRevenue,
+      activePatients: activePatients,
     };
 
     return parseStringify(stats);
@@ -682,6 +750,8 @@ export const getDashboardStats = async () => {
       totalAppointments30Days: 0,
       cancelledAppointments30Days: 0,
       completedAppointments30Days: 0,
+      monthlyRevenue: 0,
+      activePatients: 0,
     };
   }
 };
@@ -725,42 +795,60 @@ export const getRevenueData = async (days: number = 30) => {
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - days);
     
-    // Pobierz wizyty z ostatnich X dni
-    const appointments = await databases.listDocuments(
-      DATABASE_ID!,
-      APPOINTMENT_COLLECTION_ID!,
-      [
-        Query.greaterThan("schedule", startDate.toISOString()),
-        Query.lessThan("schedule", endDate.toISOString()),
-        Query.orderDesc("schedule")
-      ]
-    );
+    console.log("getRevenueData: Pobieranie danych dochodów dla okresu:", {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      days
+    });
+    
+    // Pobierz wpisy dochodów z kolekcji Revenue z ostatnich X dni
+    const { getRevenueEntries } = await import('./revenue.actions');
+    
+    // Najpierw spróbuj pobrać wszystkie wpisy bez filtrów dat
+    console.log("getRevenueData: Pobieranie wszystkich wpisów dochodów...");
+    const allRevenueEntries = await getRevenueEntries({});
+    console.log("getRevenueData: Wszystkie wpisy dochodów:", allRevenueEntries);
+    
+    // Teraz spróbuj z filtrami dat
+    const revenueEntries = await getRevenueEntries({
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0]
+    });
 
-    // Oblicz przychód (zakładając że każda wizyta to 200 zł)
-    const totalRevenue = appointments.documents.length * 200;
+    console.log("getRevenueData: Pobrane wpisy dochodów:", revenueEntries);
+
+    // Użyj wszystkich wpisów jeśli filtry dat nie zwróciły wyników
+    const finalRevenueEntries = revenueEntries.length > 0 ? revenueEntries : allRevenueEntries;
+    
+    // Sumuj przychód z wpisów dochodów
+    const totalRevenue = finalRevenueEntries.reduce((sum, entry) => sum + entry.amount, 0);
+    
+    console.log("getRevenueData: Suma przychodów:", totalRevenue);
     
     // Oblicz przychód z poprzedniego okresu dla porównania
     const previousStartDate = new Date();
     previousStartDate.setDate(startDate.getDate() - days);
     
-    const previousAppointments = await databases.listDocuments(
-      DATABASE_ID!,
-      APPOINTMENT_COLLECTION_ID!,
-      [
-        Query.greaterThan("schedule", previousStartDate.toISOString()),
-        Query.lessThan("schedule", startDate.toISOString()),
-        Query.orderDesc("schedule")
-      ]
-    );
+    const previousRevenueEntries = await getRevenueEntries({
+      startDate: previousStartDate.toISOString().split('T')[0],
+      endDate: startDate.toISOString().split('T')[0]
+    });
 
-    const previousRevenue = previousAppointments.documents.length * 200;
+    const previousRevenue = previousRevenueEntries.reduce((sum, entry) => sum + entry.amount, 0);
     const revenueGrowth = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+
+    console.log("getRevenueData: Wynik końcowy:", {
+      totalRevenue,
+      previousRevenue,
+      revenueGrowth,
+      appointmentsCount: revenueEntries.length
+    });
 
     return parseStringify({
       totalRevenue,
       previousRevenue,
       revenueGrowth: Math.round(revenueGrowth),
-      appointmentsCount: appointments.documents.length
+      appointmentsCount: finalRevenueEntries.length
     });
   } catch (error) {
     console.error("Error getting revenue data:", error);

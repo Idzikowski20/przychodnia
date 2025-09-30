@@ -11,28 +11,39 @@ import {
 import { parseStringify } from "../utils";
 
 // CREATE APPWRITE USER
-export const createUser = async (user: CreateUserParams) => {
+export const createUser = async (user: CreateUserParams & { password?: string }) => {
   try {
+    console.log("Tworzę użytkownika w Appwrite:", { email: user.email, phone: user.phone, hasPassword: !!user.password });
+    
     // Create new user -> https://appwrite.io/docs/references/1.5.x/server-nodejs/users#create
     const newuser = await users.create(
       ID.unique(),
       user.email,
       user.phone,
-      undefined,
+      user.password, // Hasło jeśli podane
       user.name
     );
 
+    console.log("Użytkownik utworzony w Appwrite:", newuser);
     return parseStringify(newuser);
   } catch (error: any) {
+    console.error("Błąd podczas tworzenia użytkownika:", error);
+    
     // Check existing user
     if (error && error?.code === 409) {
+      console.log("Użytkownik już istnieje, pobieram istniejącego...");
       const existingUser = await users.list([
         Query.equal("email", [user.email]),
       ]);
 
-      return existingUser.users[0];
+      if (existingUser.users.length > 0) {
+        console.log("Znaleziono istniejącego użytkownika:", existingUser.users[0]);
+        return parseStringify(existingUser.users[0]);
+      }
     }
-    console.error("An error occurred while creating a new user:", error);
+    
+    console.error("Nie udało się utworzyć ani znaleźć użytkownika");
+    return null;
   }
 };
 
@@ -63,6 +74,8 @@ export const registerPatient = async (patient: RegisterUserParams) => {
         name: patient.name,
         email: patient.email,
         phone: patient.phone,
+        numberVerified: patient.numberVerified,
+        password: patient.password || "",
         birthDate: patient.birthDate,
         gender: patient.gender,
         address: patient.address,
@@ -142,6 +155,8 @@ export const updatePatient = async (
     name: string;
     email: string;
     phone: string;
+    numberVerified: boolean;
+    password?: string;
     birthDate: Date;
     gender: string;
     address: string;

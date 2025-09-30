@@ -10,7 +10,8 @@ import {
   Users, 
   TrendingUp,
   ArrowUpRight,
-  BarChart3
+  BarChart3,
+  DollarSign
 } from "lucide-react";
 
 interface DashboardStatsProps {
@@ -21,14 +22,24 @@ interface DashboardStatsProps {
     cancelledAppointments30Days: number;
     completedAppointments30Days: number;
     newPatients30Days?: number;
+    totalRevenue30Days?: number;
+    revenueGrowth?: number;
   };
 }
 
 export const DashboardStats = ({ stats }: DashboardStatsProps) => {
   const todayProgress = stats.todayScheduled > 0 ? (stats.todayAppointments / stats.todayScheduled) * 100 : 0;
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('pl-PL', {
+      style: 'currency',
+      currency: 'PLN',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
       {/* Wizyty dzisiaj */}
       <Card className="bg-white border border-gray-200 shadow-lg hover:bg-gradient-to-b from-blue-500/10 to-transparent transition-all duration-300 cursor-pointer group">
         <CardContent className="p-6 h-48">
@@ -177,6 +188,35 @@ export const DashboardStats = ({ stats }: DashboardStatsProps) => {
               <div className="flex items-center gap-2 text-green-600 group-hover:text-white transition-colors duration-300">
                 <TrendingUp className="h-4 w-4" />
                 <span className="text-sm font-medium">Dobra wydajność</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Przychód (30 dni) */}
+      <Card className="bg-white border border-gray-200 shadow-lg hover:bg-gradient-to-b from-green-500/10 to-transparent transition-all duration-300 cursor-pointer group">
+        <CardContent className="p-6 h-48">
+          <div className="flex flex-col h-full">
+            <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mb-4">
+              <DollarSign className="h-6 w-6 text-white" />
+            </div>
+            <div className="flex-1 flex flex-col justify-between">
+              <div>
+                <h3 className="text-3xl font-bold text-gray-900 group-hover:text-white transition-colors duration-300 mb-2">
+                  {stats.totalRevenue30Days ? formatCurrency(stats.totalRevenue30Days) : "0 zł"}
+                </h3>
+                <p className="text-gray-600 text-sm font-medium group-hover:text-white/90 transition-colors duration-300 mb-3">
+                  Przychód (30 dni)
+                </p>
+              </div>
+              <div className={`flex items-center gap-2 group-hover:text-white transition-colors duration-300 ${
+                (stats.revenueGrowth || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                <TrendingUp className={`h-4 w-4 ${(stats.revenueGrowth || 0) < 0 ? 'rotate-180' : ''}`} />
+                <span className="text-sm font-medium">
+                  {stats.revenueGrowth ? `${stats.revenueGrowth > 0 ? '+' : ''}${stats.revenueGrowth.toFixed(1)}% vs ostatni miesiąc` : 'Brak danych'}
+                </span>
               </div>
             </div>
           </div>

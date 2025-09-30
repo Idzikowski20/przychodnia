@@ -61,9 +61,15 @@ export const AppointmentDetails = ({
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button variant="ghost" className="text-blue-500">
-            Szczegóły
-          </Button>
+          <button className="px-3 py-1.5 bg-transparent hover:bg-gray-100 text-black border border-gray-300 rounded-[0.25rem] text-sm">
+            <div className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2.45448 13.8008C1.84656 12.6796 1.84656 11.3204 2.45447 10.1992C4.29523 6.80404 7.87965 4.5 11.9999 4.5C16.1202 4.5 19.7046 6.80404 21.5454 10.1992C22.1533 11.3204 22.1533 12.6796 21.5454 13.8008C19.7046 17.196 16.1202 19.5 11.9999 19.5C7.87965 19.5 4.29523 17.196 2.45448 13.8008Z" stroke="black" strokeWidth="1"/>
+                <path d="M15.0126 11.9551C15.0126 13.6119 13.6695 14.9551 12.0126 14.9551C10.3558 14.9551 9.01263 13.6119 9.01263 11.9551C9.01263 10.2982 10.3558 8.95508 12.0126 8.95508C13.6695 8.95508 15.0126 10.2982 15.0126 11.9551Z" stroke="black" strokeWidth="1"/>
+              </svg>
+              Szczegóły
+            </div>
+          </button>
         </DialogTrigger>
         <DialogContent className="shad-dialog max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="mb-6 space-y-3">
